@@ -12,7 +12,7 @@ func IsValidAuto(code string) bool {
 }
 
 func IsValidCustom(code string) bool {
-	if len(code) < 3 || len(code) > 32 {
+	if len(code) < 1 || len(code) > 32 {
 		return false
 	}
 	for i := 0; i < len(code); i++ {
@@ -47,4 +47,3 @@ func MustRandomString(n int) string {
 	}
 	return string(b)
 }
-

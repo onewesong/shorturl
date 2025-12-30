@@ -2,3 +2,4 @@ data/
 node_modules/
 cmd/shorturl/node_modules/
 *.db
+.env

@@ -4,9 +4,9 @@ services:
     ports:
       - "${PUBLISHED_PORT:-38080}:8080"
     environment:
-      ADMIN_USERNAME: admin
-      ADMIN_PASSWORD: change-me
-      SESSION_SECRET: change-me-too
-      DB_PATH: /data/shorturl.db
+      ADMIN_USERNAME: "${ADMIN_USERNAME?ADMIN_USERNAME 未设置}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD?ADMIN_PASSWORD 未设置}"
+      SESSION_SECRET: "${SESSION_SECRET?SESSION_SECRET 未设置}"
+      DB_PATH: "${DB_PATH:-/data/shorturl.db}"
     volumes:
       - ./data:/data
