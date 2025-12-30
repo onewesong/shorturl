@@ -165,15 +165,39 @@ func (a *app) updateLink(c *gin.Context) {
 		return
 	}
 
+	if _, err := db.GetLinkByID(a.db, id); err != nil {
+		c.String(http.StatusNotFound, "not found")
+		return
+	}
+
+	code := strings.TrimSpace(c.PostForm("code"))
 	target := strings.TrimSpace(c.PostForm("target_url"))
 	enabled := c.PostForm("enabled") == "on"
+
+	if code == "" {
+		c.Redirect(http.StatusFound, "/admin/links/"+c.Param("id")+"/edit?err=短码不能为空")
+		return
+	}
+	if !shortcode.IsValidCustom(code) {
+		c.Redirect(http.StatusFound, "/admin/links/"+c.Param("id")+"/edit?err=短码格式不合法")
+		return
+	}
+	taken, err := db.IsLinkCodeTaken(a.db, code, id)
+	if err != nil {
+		c.Redirect(http.StatusFound, "/admin/links/"+c.Param("id")+"/edit?err=系统错误")
+		return
+	}
+	if taken {
+		c.Redirect(http.StatusFound, "/admin/links/"+c.Param("id")+"/edit?err=短码已被占用")
+		return
+	}
 
 	if target == "" || !isValidURL(target) {
 		c.Redirect(http.StatusFound, "/admin/links/"+c.Param("id")+"/edit?err=目标URL无效")
 		return
 	}
 
-	if err := db.UpdateLink(a.db, id, target, enabled); err != nil {
+	if err := db.UpdateLinkWithCode(a.db, id, code, target, enabled); err != nil {
 		c.Redirect(http.StatusFound, "/admin/links/"+c.Param("id")+"/edit?err=更新失败")
 		return
 	}

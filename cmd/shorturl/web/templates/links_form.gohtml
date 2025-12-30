@@ -38,7 +38,8 @@
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label class="block text-sm font-medium">短码</label>
-              <input value="{{.Link.Code}}" disabled class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-slate-700" />
+              <input name="code" value="{{.Link.Code}}" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-slate-400" required />
+              <p class="mt-1 text-xs text-slate-500">允许字母/数字/ - / _，长度 1~32；如被占用则无法修改。</p>
             </div>
             <div class="flex items-end">
               <label class="inline-flex items-center gap-2">

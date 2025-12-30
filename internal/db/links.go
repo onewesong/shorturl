@@ -99,6 +99,28 @@ func UpdateLink(db *sql.DB, id int64, targetURL string, enabled bool) error {
 	return err
 }
 
+func IsLinkCodeTaken(db *sql.DB, code string, excludeID int64) (bool, error) {
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(1) FROM links WHERE code = ? AND id != ?`, code, excludeID).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func UpdateLinkWithCode(db *sql.DB, id int64, code, targetURL string, enabled bool) error {
+	enabledInt := 0
+	if enabled {
+		enabledInt = 1
+	}
+	_, err := db.Exec(
+		`UPDATE links
+		 SET code = ?, target_url = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+		 WHERE id = ?`,
+		code, targetURL, enabledInt, id,
+	)
+	return err
+}
+
 func IncrementClick(db *sql.DB, id int64) error {
 	_, err := db.Exec(`UPDATE links SET click_count = click_count + 1 WHERE id = ?`, id)
 	return err
@@ -135,4 +157,3 @@ func randomBase62(n int) (string, error) {
 	}
 	return string(b), nil
 }
-
