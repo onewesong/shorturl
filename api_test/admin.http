@@ -1,0 +1,34 @@
+@baseUrl = http://localhost:38080
+@adminUser = admin
+@adminPass = change-me
+
+### 打开登录页（应返回 200）
+# @noRedirect
+GET {{baseUrl}}/admin/login
+
+?? status == 200
+
+### 登录（成功后应返回 302，并带 Set-Cookie: shorturl_session=...）
+# @name login
+# @noRedirect
+POST {{baseUrl}}/admin/login
+# @no-log
+Content-Type: application/x-www-form-urlencoded
+
+username={{adminUser}}&password={{adminPass}}
+
+?? status == 302
+
+{{
+  const raw = response.headers?.['set-cookie'];
+  const setCookie = Array.isArray(raw) ? raw[0] : (typeof raw === 'string' ? raw : '');
+  if (!setCookie) throw new Error('missing set-cookie (login failed?)');
+  // 只取 "shorturl_session=..."，避免把 Path/Max-Age 等属性一并作为 Cookie 发送
+  exports.shorturl_cookie = setCookie.split(';')[0];
+}}
+
+### 退出登录（应返回 302）
+# @noRedirect
+POST {{baseUrl}}/admin/logout
+
+?? status == 302

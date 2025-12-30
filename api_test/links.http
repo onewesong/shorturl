@@ -1,0 +1,66 @@
+@baseUrl = http://localhost:38080
+@adminUser = admin
+@adminPass = change-me
+
+# 说明：
+# - 本文件用 httpyac 的 CookieJar 自动维持会话；无需手动维护 Cookie 变量
+# - 如果你只想单独执行某条需要登录的请求，先执行“登录”这条即可
+
+@code = api_test_demo_1
+@targetUrl = https://example.com
+
+### 登录并缓存 Cookie（成功后应返回 302，并带 Set-Cookie: shorturl_session=...）
+# @name login
+# @noRedirect
+POST {{baseUrl}}/admin/login
+# @no-log
+Content-Type: application/x-www-form-urlencoded
+
+username={{adminUser}}&password={{adminPass}}
+
+?? status == 302
+
+{{
+  const raw = response.headers?.['set-cookie'];
+  const setCookie = Array.isArray(raw) ? raw[0] : (typeof raw === 'string' ? raw : '');
+  if (!setCookie) throw new Error('missing set-cookie (login failed?)');
+  // 只取 "shorturl_session=..."，避免把 Path/Max-Age 等属性一并作为 Cookie 发送
+  exports.shorturl_cookie = setCookie.split(';')[0];
+}}
+
+### 查看短链列表（应返回 200；未登录会 302 到 /admin/login）
+# @noRedirect
+GET {{baseUrl}}/admin/links
+
+?? status == 200
+
+### 打开“新建短链”表单（应返回 200）
+# @noRedirect
+GET {{baseUrl}}/admin/links/new
+
+?? status == 200
+
+### 新建短链（自定义短码；成功应 302 到 /admin/links；若短码重复会 302 到 /admin/links/new?err=...）
+# @noRedirect
+POST {{baseUrl}}/admin/links
+Content-Type: application/x-www-form-urlencoded
+
+code={{code}}&target_url={{targetUrl}}
+
+?? status == 302
+
+### 打开编辑页（把 id 改成列表页里看到的数字）
+@linkId = 1
+# @noRedirect
+GET {{baseUrl}}/admin/links/{{linkId}}/edit
+
+?? status == 200
+
+### 更新短链（enabled=on 表示启用；去掉 enabled=on 表示禁用）
+# @noRedirect
+POST {{baseUrl}}/admin/links/{{linkId}}
+Content-Type: application/x-www-form-urlencoded
+
+target_url={{targetUrl}}&enabled=on
+
+?? status == 302

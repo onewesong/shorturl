@@ -1,0 +1,12 @@
+@baseUrl = http://localhost:38080
+@code = api_test_demo_1
+
+### 访问短码（启用且存在时：302 Location: 目标URL；不存在/禁用时：404）
+# @noRedirect
+GET {{baseUrl}}/{{code}}
+
+?? js response.statusCode === 302 || response.statusCode === 404
+
+# 这里的状态码取决于 code 是否存在且启用：
+# - 如果你先用 links.http 创建/启用该 code，则应为 302
+# - 否则通常为 404
