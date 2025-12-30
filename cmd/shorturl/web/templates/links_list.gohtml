@@ -1,0 +1,59 @@
+{{define "links_list"}}
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <div class="mx-auto max-w-5xl px-4 py-6">
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-semibold">短链管理</h1>
+        <div class="flex gap-2">
+          <form method="post" action="/admin/logout">
+            <button class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50" type="submit">退出</button>
+          </form>
+          <a class="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800" href="/admin/links/new">新建</a>
+        </div>
+      </div>
+
+      <div class="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <table class="w-full table-auto text-sm">
+          <thead class="bg-slate-50 text-left text-slate-600">
+            <tr>
+              <th class="px-4 py-3">短码</th>
+              <th class="px-4 py-3">目标URL</th>
+              <th class="px-4 py-3">状态</th>
+              <th class="px-4 py-3">点击</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {{range .Links}}
+            <tr class="align-top">
+              <td class="px-4 py-3 font-mono">
+                <a class="text-slate-900 underline" href="/{{.Code}}" target="_blank" rel="noreferrer">{{.Code}}</a>
+              </td>
+              <td class="px-4 py-3 break-all text-slate-700">{{.TargetURL}}</td>
+              <td class="px-4 py-3">
+                {{if .Enabled}}
+                <span class="inline-flex rounded-full bg-green-50 px-2 py-1 text-xs text-green-700">启用</span>
+                {{else}}
+                <span class="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700">禁用</span>
+                {{end}}
+              </td>
+              <td class="px-4 py-3 text-slate-700">{{.ClickCount}}</td>
+              <td class="px-4 py-3 text-right">
+                <a class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs hover:bg-slate-50" href="/admin/links/{{.ID}}/edit">编辑</a>
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>
+{{end}}
