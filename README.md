@@ -9,7 +9,7 @@
 docker compose up --build
 ```
 
-- 后台：`http://localhost:<PUBLISHED_PORT>/admin/login`（默认 `8080`）
+- 后台：`http://localhost:<PUBLISHED_PORT>/admin/`（默认 `8080`）
 - 访问短链：`http://localhost:<PUBLISHED_PORT>/<code>`
 
 如果本机 `8080` 端口已占用，可以这样启动：
@@ -17,6 +17,10 @@ docker compose up --build
 ```bash
 PUBLISHED_PORT=38080 docker compose up --build
 ```
+
+## 本地开发（可选）
+
+- 构建后台前端：`npm --prefix web install && npm --prefix web run build`
 
 ## 环境变量
 

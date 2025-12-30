@@ -4,8 +4,6 @@ import (
 	"context"
 	"embed"
 	"errors"
-	"html/template"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -22,7 +20,7 @@ import (
 	"github.com/mine/shorturl/internal/shortcode"
 )
 
-//go:embed web/templates/*.gohtml web/static/*
+//go:embed web/dist/index.html web/dist/assets/*
 var embeddedAssets embed.FS
 
 func main() {
@@ -52,21 +50,10 @@ func main() {
 		log.Fatalf("ensure admin: %v", err)
 	}
 
-	tplFS, err := fs.Sub(embeddedAssets, "web/templates")
-	if err != nil {
-		log.Fatalf("sub templates: %v", err)
-	}
-	templates, err := template.ParseFS(tplFS, "*.gohtml")
-	if err != nil {
-		log.Fatalf("parse templates: %v", err)
-	}
-
-	staticFS, err := fs.Sub(embeddedAssets, "web/static")
-	if err != nil {
-		log.Fatalf("sub static: %v", err)
-	}
-
 	router := gin.New()
+	// 关闭自动补/去尾部斜杠：避免 /admin/ 被重定向到 /admin（会撞到 /:code 路由）
+	router.RedirectTrailingSlash = false
+	router.RedirectFixedPath = false
 	router.Use(gin.Logger(), gin.Recovery())
 
 	sessionStore := cookie.NewStore([]byte(storeKey))
@@ -78,9 +65,6 @@ func main() {
 		Secure:   cfg.CookieSecure,
 	})
 	router.Use(sessions.Sessions("shorturl_session", sessionStore))
-
-	router.SetHTMLTemplate(templates)
-	router.StaticFS("/static", http.FS(staticFS))
 
 	app := newApp(cfg, database)
 	app.registerRoutes(router)
@@ -106,4 +90,3 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(ctx)
 }
-

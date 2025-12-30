@@ -1,17 +1,16 @@
 FROM node:20-alpine AS webbuild
-WORKDIR /app
-COPY cmd/shorturl/package.json cmd/shorturl/package-lock.json* ./
+WORKDIR /web
+COPY web/package.json web/package-lock.json* ./
 RUN npm install
-COPY cmd/shorturl/web/tailwind ./web/tailwind
-COPY cmd/shorturl/web/templates ./web/templates
-RUN npx tailwindcss -c ./web/tailwind/tailwind.config.js -i ./web/tailwind/input.css -o ./web/static/app.css --minify
+COPY web/ ./
+RUN npm run build
 
 FROM golang:1.23-bookworm AS gobuild
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-COPY --from=webbuild /app/web/static/app.css ./cmd/shorturl/web/static/app.css
+COPY --from=webbuild /web/dist ./cmd/shorturl/web/dist
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/shorturl ./cmd/shorturl
 
 FROM debian:bookworm-slim

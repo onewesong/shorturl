@@ -10,13 +10,13 @@ import (
 )
 
 type Link struct {
-	ID         int64
-	Code       string
-	TargetURL  string
-	Enabled    bool
-	ClickCount int64
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID         int64     `json:"id"`
+	Code       string    `json:"code"`
+	TargetURL  string    `json:"target_url"`
+	Enabled    bool      `json:"enabled"`
+	ClickCount int64     `json:"click_count"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 func ListLinks(db *sql.DB, limit int) ([]Link, error) {
@@ -135,4 +135,3 @@ func randomBase62(n int) (string, error) {
 	}
 	return string(b), nil
 }
-
