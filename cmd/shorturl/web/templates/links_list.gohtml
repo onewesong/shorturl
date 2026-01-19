@@ -36,7 +36,9 @@
               <td class="px-4 py-3 font-mono">
                 <a class="text-slate-900 underline" href="/{{.Code}}" target="_blank" rel="noreferrer">{{.Code}}</a>
               </td>
-              <td class="px-4 py-3 break-all text-slate-700">{{.TargetURL}}</td>
+              <td class="px-4 py-3 max-w-md">
+                <div class="truncate text-slate-700" title="{{.TargetURL}}">{{.TargetURL}}</div>
+              </td>
               <td class="px-4 py-3">
                 {{if .Enabled}}
                 <span class="inline-flex rounded-full bg-green-50 px-2 py-1 text-xs text-green-700">启用</span>

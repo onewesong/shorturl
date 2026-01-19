@@ -92,7 +92,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("listening on %s", cfg.Addr())
+		log.Printf("listening on http://%s", cfg.Addr())
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("listen: %v", err)
 		}
@@ -106,4 +106,3 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(ctx)
 }
-
