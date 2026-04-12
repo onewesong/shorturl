@@ -26,6 +26,7 @@ func registerAdminRoutes(router *gin.Engine, adminStaticDir string, linkService 
 	protected := adminAPI.Group("/")
 	protected.Use(requireLogin())
 	protected.GET("/links", listLinksHandler(linkService))
+	protected.GET("/links/:id/analytics", getLinkAnalyticsHandler(linkService))
 	protected.POST("/links", createLinkHandler(linkService))
 	protected.PUT("/links/:id", updateLinkHandler(linkService))
 
@@ -134,6 +135,37 @@ func createLinkHandler(linkService *links.Service) gin.HandlerFunc {
 		c.JSON(http.StatusCreated, apiResponse{
 			Success: true,
 			Data:    link,
+		})
+	}
+}
+
+func getLinkAnalyticsHandler(linkService *links.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			writeJSONError(c, http.StatusBadRequest, "invalid_request")
+			return
+		}
+
+		days := 7
+		if rawDays := strings.TrimSpace(c.Query("days")); rawDays != "" {
+			parsedDays, parseErr := strconv.Atoi(rawDays)
+			if parseErr != nil {
+				writeJSONError(c, http.StatusBadRequest, "invalid_request")
+				return
+			}
+			days = parsedDays
+		}
+
+		analytics, err := linkService.Analytics(c.Request.Context(), id, days)
+		if err != nil {
+			writeLinkError(c, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, apiResponse{
+			Success: true,
+			Data:    analytics,
 		})
 	}
 }

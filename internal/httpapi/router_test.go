@@ -158,6 +158,46 @@ func TestRedirectIncrementsClicksAndHonorsDisabled(t *testing.T) {
 	}
 }
 
+func TestLinkAnalyticsIncludesVisitContext(t *testing.T) {
+	router := newTestRouter(t)
+	sessionCookie := login(t, router)
+
+	createRecorder := performJSONRequest(router, http.MethodPost, "/admin/api/v1/links", `{"code":"track-me","target_url":"https://example.com/live"}`, sessionCookie)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", createRecorder.Code, createRecorder.Body.String())
+	}
+
+	redirectRecorder := httptest.NewRecorder()
+	redirectReq := httptest.NewRequest(http.MethodGet, "/track-me", nil)
+	redirectReq.Header.Set("Referer", "https://mp.weixin.qq.com/s/demo")
+	redirectReq.Header.Set("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.49")
+	redirectReq.RemoteAddr = "10.2.3.4:12345"
+	router.ServeHTTP(redirectRecorder, redirectReq)
+
+	if redirectRecorder.Code != http.StatusFound {
+		t.Fatalf("expected 302, got %d body=%s", redirectRecorder.Code, redirectRecorder.Body.String())
+	}
+
+	analyticsRecorder := performJSONRequest(router, http.MethodGet, "/admin/api/v1/links/1/analytics?days=7", "", sessionCookie)
+	if analyticsRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", analyticsRecorder.Code, analyticsRecorder.Body.String())
+	}
+
+	body := analyticsRecorder.Body.String()
+	if !strings.Contains(body, `"recent_clicks":1`) {
+		t.Fatalf("expected recent_clicks in analytics response, got %s", body)
+	}
+	if !strings.Contains(body, `"referer_host":"mp.weixin.qq.com"`) {
+		t.Fatalf("expected referer host in analytics response, got %s", body)
+	}
+	if !strings.Contains(body, `"client_name":"微信"`) {
+		t.Fatalf("expected client name in analytics response, got %s", body)
+	}
+	if !strings.Contains(body, `"ip_masked":"10.2.3.*"`) {
+		t.Fatalf("expected masked ip in analytics response, got %s", body)
+	}
+}
+
 func newTestRouter(t *testing.T) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)

@@ -47,7 +47,13 @@ func NewRouter(
 	registerAdminRoutes(router, adminStaticDir, linkService, auth)
 
 	router.GET("/:code", func(c *gin.Context) {
-		targetURL, err := linkService.Resolve(c.Request.Context(), c.Param("code"))
+		targetURL, err := linkService.Resolve(c.Request.Context(), c.Param("code"), links.VisitMeta{
+			VisitedAt:   time.Now().UTC(),
+			IP:          c.ClientIP(),
+			Referer:     c.Request.Referer(),
+			RefererHost: "",
+			UserAgent:   c.Request.UserAgent(),
+		})
 		if err != nil {
 			if errors.Is(err, links.ErrLinkNotFound) {
 				c.Status(http.StatusNotFound)

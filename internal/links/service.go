@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/mine/shorturl/internal/shortcode"
 )
@@ -79,7 +80,7 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateLinkInput) (
 	return s.repo.UpdateLink(ctx, current)
 }
 
-func (s *Service) Resolve(ctx context.Context, code string) (string, error) {
+func (s *Service) Resolve(ctx context.Context, code string, meta VisitMeta) (string, error) {
 	trimmed := strings.TrimSpace(code)
 	if trimmed == "" || strings.Contains(trimmed, "/") {
 		return "", ErrLinkNotFound
@@ -94,7 +95,21 @@ func (s *Service) Resolve(ctx context.Context, code string) (string, error) {
 	}
 
 	_ = s.repo.IncrementClick(ctx, link.ID)
+	_ = s.repo.RecordVisit(ctx, link.ID, normalizeVisitMeta(meta))
 	return link.TargetURL, nil
+}
+
+func (s *Service) Analytics(ctx context.Context, id int64, days int) (LinkAnalytics, error) {
+	windowDays := normalizeAnalyticsDays(days)
+	now := time.Now().UTC()
+	since := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -windowDays+1)
+
+	analytics, err := s.repo.GetLinkAnalytics(ctx, id, since, analyticsRecentVisitLimit)
+	if err != nil {
+		return LinkAnalytics{}, err
+	}
+	analytics.RangeDays = windowDays
+	return analytics, nil
 }
 
 func isValidURL(raw string) bool {

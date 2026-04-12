@@ -51,7 +51,24 @@ func Init(ctx context.Context, db *sql.DB) error {
 			created_at DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
 			updated_at DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 		);`,
+		`CREATE TABLE IF NOT EXISTS link_visits (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			link_id INTEGER NOT NULL,
+			ip TEXT NOT NULL DEFAULT '',
+			referer TEXT NOT NULL DEFAULT '',
+			referer_host TEXT NOT NULL DEFAULT '',
+			user_agent TEXT NOT NULL DEFAULT '',
+			client_name TEXT NOT NULL DEFAULT '',
+			client_type TEXT NOT NULL DEFAULT '',
+			device_type TEXT NOT NULL DEFAULT '',
+			os TEXT NOT NULL DEFAULT '',
+			visited_at DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+			FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE CASCADE
+		);`,
 		`CREATE INDEX IF NOT EXISTS idx_links_code ON links(code);`,
+		`CREATE INDEX IF NOT EXISTS idx_link_visits_link_visited_at ON link_visits(link_id, visited_at DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_link_visits_link_referer_host ON link_visits(link_id, referer_host);`,
+		`CREATE INDEX IF NOT EXISTS idx_link_visits_link_client_name ON link_visits(link_id, client_name);`,
 	}
 
 	for _, statement := range statements {

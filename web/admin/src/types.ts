@@ -29,3 +29,37 @@ export type AuthSession = {
   authenticated: boolean;
   username: string;
 };
+
+export type VisitPoint = {
+  bucket: string;
+  clicks: number;
+};
+
+export type VisitBreakdown = {
+  name: string;
+  count: number;
+};
+
+export type VisitRecord = {
+  visited_at: string;
+  ip_masked: string;
+  referer: string;
+  referer_host: string;
+  user_agent: string;
+  client_name: string;
+  client_type: string;
+  device_type: string;
+  os: string;
+};
+
+export type LinkAnalytics = {
+  link: Link;
+  range_days: number;
+  recent_clicks: number;
+  unique_ips: number;
+  last_visited_at?: string;
+  time_series: VisitPoint[];
+  top_referrers: VisitBreakdown[];
+  top_clients: VisitBreakdown[];
+  recent_visits: VisitRecord[];
+};

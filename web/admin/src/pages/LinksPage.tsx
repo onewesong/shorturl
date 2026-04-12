@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { ApiError, createLink, updateLink } from "../lib/api";
-import type { AuthSession, CreateLinkInput, Link, UpdateLinkInput } from "../types";
+import { ApiError, createLink, getLinkAnalytics, updateLink } from "../lib/api";
+import type { AuthSession, CreateLinkInput, Link, LinkAnalytics, UpdateLinkInput } from "../types";
 import { LinkFormModal } from "../components/LinkFormModal";
 
 type Props = {
@@ -21,15 +21,68 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
   const [actionError, setActionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [analyticsDays, setAnalyticsDays] = useState(7);
+  const [selectedLinkId, setSelectedLinkId] = useState<number | null>(null);
+  const [analytics, setAnalytics] = useState<LinkAnalytics | null>(null);
+  const [analyticsError, setAnalyticsError] = useState("");
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
 
   const availableTags = Array.from(new Set(links.flatMap((link) => link.tags))).sort((left, right) => left.localeCompare(right));
   const filteredLinks = activeTag ? links.filter((link) => link.tags.includes(activeTag)) : links;
+  const selectedLink = filteredLinks.find((item) => item.id === selectedLinkId) ?? links.find((item) => item.id === selectedLinkId) ?? null;
 
   const summary = {
     total: filteredLinks.length,
     enabled: filteredLinks.filter((link) => link.enabled).length,
     clicks: filteredLinks.reduce((total, link) => total + link.click_count, 0),
   };
+
+  useEffect(() => {
+    if (!selectedLinkId) {
+      setAnalytics(null);
+      setAnalyticsError("");
+      return;
+    }
+
+    const linkId = selectedLinkId;
+    let cancelled = false;
+
+    async function loadAnalytics() {
+      setIsLoadingAnalytics(true);
+      setAnalyticsError("");
+
+      try {
+        const result = await getLinkAnalytics(linkId, analyticsDays);
+        if (cancelled) {
+          return;
+        }
+        setAnalytics(result);
+      } catch (unknownError) {
+        if (cancelled) {
+          return;
+        }
+
+        if (unknownError instanceof ApiError) {
+          setAnalyticsError(unknownError.message);
+        } else if (unknownError instanceof Error) {
+          setAnalyticsError(unknownError.message);
+        } else {
+          setAnalyticsError("unknown_error");
+        }
+        setAnalytics(null);
+      } finally {
+        if (!cancelled) {
+          setIsLoadingAnalytics(false);
+        }
+      }
+    }
+
+    void loadAnalytics();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [analyticsDays, selectedLinkId]);
 
   async function runAction(action: () => Promise<void>, successText: string) {
     setIsSubmitting(true);
@@ -218,6 +271,13 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
                     <div className="table-actions">
                       <button
                         type="button"
+                        className="secondary-button small-button"
+                        onClick={() => setSelectedLinkId(link.id)}
+                      >
+                        分析
+                      </button>
+                      <button
+                        type="button"
                         className="ghost-button small-button"
                         onClick={() => setModal({ type: "edit", link })}
                       >
@@ -240,6 +300,159 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
           </table>
         </div>
       </section>
+
+      {selectedLink && (
+        <section className="analytics-card">
+          <div className="table-header">
+            <div>
+              <p className="eyebrow">Analytics</p>
+              <h2>{selectedLink.code} 的访问分析</h2>
+              <p className="muted-copy">
+                看最近访问 IP、来源域名、客户端类型，以及 {analyticsDays} 天访问曲线。
+              </p>
+            </div>
+            <div className="hero-actions">
+              {[7, 30].map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  className={`tag-filter ${analyticsDays === days ? "tag-filter-active" : ""}`}
+                  onClick={() => setAnalyticsDays(days)}
+                >
+                  近 {days} 天
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {analyticsError && <p className="error-banner">{analyticsError}</p>}
+          {isLoadingAnalytics && <p className="muted-copy">正在加载分析数据...</p>}
+
+          {analytics && (
+            <>
+              <section className="analytics-summary-grid">
+                <article className="summary-card">
+                  <span className="summary-label">窗口点击</span>
+                  <strong>{analytics.recent_clicks}</strong>
+                </article>
+                <article className="summary-card">
+                  <span className="summary-label">独立 IP</span>
+                  <strong>{analytics.unique_ips}</strong>
+                </article>
+                <article className="summary-card">
+                  <span className="summary-label">累计点击</span>
+                  <strong>{analytics.link.click_count}</strong>
+                </article>
+                <article className="summary-card">
+                  <span className="summary-label">最近访问</span>
+                  <strong className="summary-meta">
+                    {analytics.last_visited_at ? formatDateTime(analytics.last_visited_at) : "暂无"}
+                  </strong>
+                </article>
+              </section>
+
+              <section className="analytics-grid">
+                <article className="insight-card">
+                  <div className="insight-header">
+                    <h3>访问曲线</h3>
+                    <span className="status-pill">{analytics.range_days} 天</span>
+                  </div>
+                  <div className="sparkline" aria-label="访问曲线">
+                    {analytics.time_series.map((point) => (
+                      <div key={point.bucket} className="sparkline-item">
+                        <div
+                          className="sparkline-bar"
+                          style={{ height: `${Math.max((point.clicks / maxClicks(analytics.time_series)) * 100, point.clicks > 0 ? 16 : 4)}%` }}
+                          title={`${point.bucket} · ${point.clicks} 次`}
+                        />
+                        <span>{point.bucket.slice(5)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="insight-card">
+                  <div className="insight-header">
+                    <h3>来源分布</h3>
+                    <span className="muted-copy">Top Referrers</span>
+                  </div>
+                  <div className="breakdown-list">
+                    {analytics.top_referrers.length > 0 ? (
+                      analytics.top_referrers.map((item) => (
+                        <div key={item.name} className="breakdown-row">
+                          <span>{item.name}</span>
+                          <strong>{item.count}</strong>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="muted-copy">暂无来源数据</p>
+                    )}
+                  </div>
+                </article>
+
+                <article className="insight-card">
+                  <div className="insight-header">
+                    <h3>客户端分布</h3>
+                    <span className="muted-copy">Top Clients</span>
+                  </div>
+                  <div className="breakdown-list">
+                    {analytics.top_clients.length > 0 ? (
+                      analytics.top_clients.map((item) => (
+                        <div key={item.name} className="breakdown-row">
+                          <span>{item.name}</span>
+                          <strong>{item.count}</strong>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="muted-copy">暂无客户端数据</p>
+                    )}
+                  </div>
+                </article>
+              </section>
+
+              <section className="insight-card">
+                <div className="insight-header">
+                  <h3>最近访问明细</h3>
+                  <span className="muted-copy">按时间倒序展示最近 20 次访问</span>
+                </div>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>访问时间</th>
+                        <th>来源 IP</th>
+                        <th>来源域名</th>
+                        <th>客户端</th>
+                        <th>设备 / 系统</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.recent_visits.map((visit) => (
+                        <tr key={`${visit.visited_at}-${visit.ip_masked}-${visit.user_agent}`}>
+                          <td>{formatDateTime(visit.visited_at)}</td>
+                          <td>{visit.ip_masked || "未知"}</td>
+                          <td title={visit.referer || "直接访问"}>{visit.referer_host || "直接访问"}</td>
+                          <td>{visit.client_name}</td>
+                          <td>
+                            {visit.device_type} / {visit.os}
+                          </td>
+                        </tr>
+                      ))}
+                      {analytics.recent_visits.length === 0 && (
+                        <tr>
+                          <td colSpan={5}>
+                            <div className="empty-state">该短链还没有访问明细</div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </>
+          )}
+        </section>
+      )}
 
       {modal?.type === "create" && (
         <LinkFormModal
@@ -270,4 +483,18 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
       )}
     </main>
   );
+}
+
+function maxClicks(points: LinkAnalytics["time_series"]) {
+  return points.reduce((value, point) => Math.max(value, point.clicks), 1);
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("zh-CN", {
+    hour12: false,
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

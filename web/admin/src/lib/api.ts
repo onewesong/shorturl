@@ -1,4 +1,4 @@
-import type { AuthSession, CreateLinkInput, Link, UpdateLinkInput } from "../types";
+import type { AuthSession, CreateLinkInput, Link, LinkAnalytics, UpdateLinkInput } from "../types";
 
 const ADMIN_API_PREFIX = "/admin/api/v1";
 
@@ -74,4 +74,8 @@ export function updateLink(id: number, payload: UpdateLinkInput) {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+}
+
+export function getLinkAnalytics(id: number, days: number) {
+  return request<LinkAnalytics>(`/links/${id}/analytics?days=${days}`);
 }
