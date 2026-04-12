@@ -86,9 +86,15 @@ docker compose up -d --build
 
 GitHub Actions 镜像发布规则：
 
-- push 到 `main`: 发布 `ghcr.io/onewesong/shorturl:edge` 和 `sha-*`
 - push tag 如 `v1.2.3`: 发布 `v1.2.3`、`1.2`、`1`、`latest`
-- 其他分支 push / PR: 只构建镜像，不推送
+- 普通分支 push / PR: 只运行测试和镜像构建校验，不推送到 GHCR
+
+发布示例：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
 
 ## 环境变量
 
