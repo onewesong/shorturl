@@ -201,6 +201,13 @@ textarea {
   padding: 24px;
 }
 
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
 .table-header {
   display: flex;
   justify-content: space-between;
@@ -219,6 +226,27 @@ textarea {
   font-weight: 600;
 }
 
+.tag-filter,
+.inline-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  cursor: pointer;
+}
+
+.tag-filter {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(23, 48, 86, 0.08);
+  color: #35506f;
+}
+
+.tag-filter-active {
+  background: rgba(223, 123, 47, 0.16);
+  color: #8b4f1b;
+  font-weight: 700;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -226,6 +254,7 @@ textarea {
 table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 th,
@@ -252,6 +281,59 @@ th {
 .account-title a,
 .stacked-meta span {
   color: #64728d;
+}
+
+.remark-text {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.shortcode-link {
+  color: #173056;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.target-url-cell {
+  width: 40%;
+}
+
+.target-url-text {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inline-tag {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(73, 118, 211, 0.12);
+  color: #35506f;
+}
+
+.inline-tag-active {
+  background: rgba(223, 123, 47, 0.16);
+  color: #8b4f1b;
+  font-weight: 700;
+}
+
+.tag-empty {
+  color: #8a94a7;
+}
+
+.empty-state {
+  padding: 18px 0;
+  color: #64728d;
+  text-align: center;
 }
 
 .account-title a {

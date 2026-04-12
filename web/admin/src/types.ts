@@ -2,6 +2,8 @@ export type Link = {
   id: number;
   code: string;
   target_url: string;
+  remark: string;
+  tags: string[];
   enabled: boolean;
   click_count: number;
   created_at?: string;
@@ -11,11 +13,15 @@ export type Link = {
 export type CreateLinkInput = {
   code: string;
   target_url: string;
+  remark: string;
+  tags: string[];
 };
 
 export type UpdateLinkInput = {
   code: string;
   target_url: string;
+  remark: string;
+  tags: string[];
   enabled: boolean;
 };
 

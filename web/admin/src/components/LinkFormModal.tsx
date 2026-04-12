@@ -14,6 +14,8 @@ type Props = {
 type FormState = {
   code: string;
   targetUrl: string;
+  remark: string;
+  tags: string;
   enabled: boolean;
 };
 
@@ -21,6 +23,8 @@ function createInitialState(link: Link | null): FormState {
   return {
     code: link?.code ?? "",
     targetUrl: link?.target_url ?? "",
+    remark: link?.remark ?? "",
+    tags: link?.tags.join(", ") ?? "",
     enabled: link?.enabled ?? true,
   };
 }
@@ -55,6 +59,11 @@ export function LinkFormModal({ mode, link, isSubmitting, error, onClose, onSubm
     const basePayload = {
       code: form.code.trim(),
       target_url: form.targetUrl.trim(),
+      remark: form.remark.trim(),
+      tags: form.tags
+        .split(/,|，/)
+        .map((tag) => tag.trim())
+        .filter(Boolean),
     };
 
     if (mode === "create") {
@@ -99,7 +108,25 @@ export function LinkFormModal({ mode, link, isSubmitting, error, onClose, onSubm
                 placeholder="https://example.com/article"
               />
             </label>
+            <label>
+              <span>标签</span>
+              <input
+                value={form.tags}
+                onChange={(event) => updateField("tags", event.target.value)}
+                placeholder="多个标签用逗号分隔"
+              />
+            </label>
           </div>
+
+          <label>
+            <span>备注</span>
+            <textarea
+              value={form.remark}
+              onChange={(event) => updateField("remark", event.target.value)}
+              rows={4}
+              placeholder="给这条短链补充用途、投放位置或备注说明"
+            />
+          </label>
 
           {mode === "edit" && (
             <label className="inline-checkbox">

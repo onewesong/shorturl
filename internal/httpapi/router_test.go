@@ -84,9 +84,12 @@ func TestCreateLinkFlow(t *testing.T) {
 		t.Fatalf("expected 400 for invalid url, got %d body=%s", badRecorder.Code, badRecorder.Body.String())
 	}
 
-	createRecorder := performJSONRequest(router, http.MethodPost, "/admin/api/v1/links", `{"code":"launch","target_url":"https://example.com/start"}`, sessionCookie)
+	createRecorder := performJSONRequest(router, http.MethodPost, "/admin/api/v1/links", `{"code":"launch","target_url":"https://example.com/start","remark":"启动页","tags":["marketing","spring"]}`, sessionCookie)
 	if createRecorder.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d body=%s", createRecorder.Code, createRecorder.Body.String())
+	}
+	if !strings.Contains(createRecorder.Body.String(), `"remark":"启动页"`) || !strings.Contains(createRecorder.Body.String(), `"tags":["marketing","spring"]`) {
+		t.Fatalf("expected remark and tags in create response, got %s", createRecorder.Body.String())
 	}
 
 	conflictRecorder := performJSONRequest(router, http.MethodPost, "/admin/api/v1/links", `{"code":"launch","target_url":"https://example.com/again"}`, sessionCookie)
@@ -99,7 +102,7 @@ func TestUpdateLinkFlow(t *testing.T) {
 	router := newTestRouter(t)
 	sessionCookie := login(t, router)
 
-	createRecorder := performJSONRequest(router, http.MethodPost, "/admin/api/v1/links", `{"code":"edit-me","target_url":"https://example.com/original"}`, sessionCookie)
+	createRecorder := performJSONRequest(router, http.MethodPost, "/admin/api/v1/links", `{"code":"edit-me","target_url":"https://example.com/original","remark":"初始备注","tags":["ops"]}`, sessionCookie)
 	if createRecorder.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d body=%s", createRecorder.Code, createRecorder.Body.String())
 	}
@@ -112,11 +115,11 @@ func TestUpdateLinkFlow(t *testing.T) {
 		t.Fatalf("expected created link in list, got %s", listRecorder.Body.String())
 	}
 
-	updateRecorder := performJSONRequest(router, http.MethodPut, "/admin/api/v1/links/1", `{"code":"edited","target_url":"https://example.com/updated","enabled":false}`, sessionCookie)
+	updateRecorder := performJSONRequest(router, http.MethodPut, "/admin/api/v1/links/1", `{"code":"edited","target_url":"https://example.com/updated","remark":"改过的备注","tags":["ops","done"],"enabled":false}`, sessionCookie)
 	if updateRecorder.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", updateRecorder.Code, updateRecorder.Body.String())
 	}
-	if !strings.Contains(updateRecorder.Body.String(), `"enabled":false`) {
+	if !strings.Contains(updateRecorder.Body.String(), `"enabled":false`) || !strings.Contains(updateRecorder.Body.String(), `"remark":"改过的备注"`) {
 		t.Fatalf("expected disabled response, got %s", updateRecorder.Body.String())
 	}
 }

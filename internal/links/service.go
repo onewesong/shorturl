@@ -28,6 +28,8 @@ func (s *Service) List(ctx context.Context) ([]Link, error) {
 func (s *Service) Create(ctx context.Context, input CreateLinkInput) (Link, error) {
 	code := strings.TrimSpace(input.Code)
 	targetURL := strings.TrimSpace(input.TargetURL)
+	remark := strings.TrimSpace(input.Remark)
+	tags := normalizeTags(input.Tags)
 
 	if !isValidURL(targetURL) {
 		return Link{}, fmt.Errorf("%w: invalid target_url", ErrValidation)
@@ -44,7 +46,7 @@ func (s *Service) Create(ctx context.Context, input CreateLinkInput) (Link, erro
 		code = generatedCode
 	}
 
-	return s.repo.CreateLink(ctx, code, targetURL)
+	return s.repo.CreateLink(ctx, code, targetURL, remark, tags)
 }
 
 func (s *Service) Update(ctx context.Context, id int64, input UpdateLinkInput) (Link, error) {
@@ -55,6 +57,8 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateLinkInput) (
 
 	code := strings.TrimSpace(input.Code)
 	targetURL := strings.TrimSpace(input.TargetURL)
+	remark := strings.TrimSpace(input.Remark)
+	tags := normalizeTags(input.Tags)
 
 	if code == "" {
 		return Link{}, fmt.Errorf("%w: code is required", ErrValidation)
@@ -68,6 +72,8 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateLinkInput) (
 
 	current.Code = code
 	current.TargetURL = targetURL
+	current.Remark = remark
+	current.Tags = tags
 	current.Enabled = input.Enabled
 
 	return s.repo.UpdateLink(ctx, current)
@@ -135,4 +141,26 @@ func randomBase62(n int) (string, error) {
 	}
 
 	return string(buf), nil
+}
+
+func normalizeTags(tags []string) []string {
+	if len(tags) == 0 {
+		return []string{}
+	}
+
+	seen := make(map[string]struct{}, len(tags))
+	result := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		normalized := strings.TrimSpace(tag)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		result = append(result, normalized)
+	}
+
+	return result
 }

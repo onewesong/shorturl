@@ -16,6 +16,8 @@ type Link struct {
 	ID         int64     `json:"id"`
 	Code       string    `json:"code"`
 	TargetURL  string    `json:"target_url"`
+	Remark     string    `json:"remark"`
+	Tags       []string  `json:"tags"`
 	Enabled    bool      `json:"enabled"`
 	ClickCount int64     `json:"click_count"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -23,21 +25,25 @@ type Link struct {
 }
 
 type CreateLinkInput struct {
-	Code      string `json:"code"`
-	TargetURL string `json:"target_url"`
+	Code      string   `json:"code"`
+	TargetURL string   `json:"target_url"`
+	Remark    string   `json:"remark"`
+	Tags      []string `json:"tags"`
 }
 
 type UpdateLinkInput struct {
-	Code      string `json:"code"`
-	TargetURL string `json:"target_url"`
-	Enabled   bool   `json:"enabled"`
+	Code      string   `json:"code"`
+	TargetURL string   `json:"target_url"`
+	Remark    string   `json:"remark"`
+	Tags      []string `json:"tags"`
+	Enabled   bool     `json:"enabled"`
 }
 
 type Repository interface {
 	ListLinks(ctx context.Context, limit int) ([]Link, error)
 	GetLinkByID(ctx context.Context, id int64) (Link, error)
 	GetLinkByCode(ctx context.Context, code string) (Link, error)
-	CreateLink(ctx context.Context, code string, targetURL string) (Link, error)
+	CreateLink(ctx context.Context, code string, targetURL string, remark string, tags []string) (Link, error)
 	UpdateLink(ctx context.Context, link Link) (Link, error)
 	IncrementClick(ctx context.Context, id int64) error
 }

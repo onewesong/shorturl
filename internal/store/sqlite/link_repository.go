@@ -3,7 +3,9 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/mine/shorturl/internal/links"
 )
@@ -19,7 +21,7 @@ func NewLinkRepository(db *sql.DB) *LinkRepository {
 func (r *LinkRepository) ListLinks(ctx context.Context, limit int) ([]links.Link, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT id, code, target_url, enabled, click_count, created_at, updated_at
+		`SELECT id, code, target_url, remark, tags_json, enabled, click_count, created_at, updated_at
 		 FROM links
 		 ORDER BY id DESC
 		 LIMIT ?`,
@@ -45,7 +47,7 @@ func (r *LinkRepository) ListLinks(ctx context.Context, limit int) ([]links.Link
 func (r *LinkRepository) GetLinkByID(ctx context.Context, id int64) (links.Link, error) {
 	row := r.db.QueryRowContext(
 		ctx,
-		`SELECT id, code, target_url, enabled, click_count, created_at, updated_at
+		`SELECT id, code, target_url, remark, tags_json, enabled, click_count, created_at, updated_at
 		 FROM links
 		 WHERE id = ?`,
 		id,
@@ -65,7 +67,7 @@ func (r *LinkRepository) GetLinkByID(ctx context.Context, id int64) (links.Link,
 func (r *LinkRepository) GetLinkByCode(ctx context.Context, code string) (links.Link, error) {
 	row := r.db.QueryRowContext(
 		ctx,
-		`SELECT id, code, target_url, enabled, click_count, created_at, updated_at
+		`SELECT id, code, target_url, remark, tags_json, enabled, click_count, created_at, updated_at
 		 FROM links
 		 WHERE code = ?`,
 		code,
@@ -82,12 +84,19 @@ func (r *LinkRepository) GetLinkByCode(ctx context.Context, code string) (links.
 	return link, nil
 }
 
-func (r *LinkRepository) CreateLink(ctx context.Context, code string, targetURL string) (links.Link, error) {
+func (r *LinkRepository) CreateLink(ctx context.Context, code string, targetURL string, remark string, tags []string) (links.Link, error) {
+	tagsJSON, err := json.Marshal(tags)
+	if err != nil {
+		return links.Link{}, fmt.Errorf("marshal link tags: %w", err)
+	}
+
 	result, err := r.db.ExecContext(
 		ctx,
-		`INSERT INTO links(code, target_url, enabled) VALUES(?, ?, 1)`,
+		`INSERT INTO links(code, target_url, remark, tags_json, enabled) VALUES(?, ?, ?, ?, 1)`,
 		code,
 		targetURL,
+		remark,
+		string(tagsJSON),
 	)
 	if err != nil {
 		if isUniqueConstraintError(err) {
@@ -110,13 +119,20 @@ func (r *LinkRepository) UpdateLink(ctx context.Context, link links.Link) (links
 		enabled = 1
 	}
 
+	tagsJSON, err := json.Marshal(link.Tags)
+	if err != nil {
+		return links.Link{}, fmt.Errorf("marshal link tags: %w", err)
+	}
+
 	result, err := r.db.ExecContext(
 		ctx,
 		`UPDATE links
-		 SET code = ?, target_url = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+		 SET code = ?, target_url = ?, remark = ?, tags_json = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
 		 WHERE id = ?`,
 		link.Code,
 		link.TargetURL,
+		link.Remark,
+		string(tagsJSON),
 		enabled,
 		link.ID,
 	)
@@ -149,12 +165,15 @@ type scanner interface {
 
 func scanLink(scanTarget scanner) (links.Link, error) {
 	var link links.Link
+	var tagsJSON string
 	var enabled int
 
 	err := scanTarget.Scan(
 		&link.ID,
 		&link.Code,
 		&link.TargetURL,
+		&link.Remark,
+		&tagsJSON,
 		&enabled,
 		&link.ClickCount,
 		&link.CreatedAt,
@@ -162,6 +181,13 @@ func scanLink(scanTarget scanner) (links.Link, error) {
 	)
 	if err != nil {
 		return links.Link{}, err
+	}
+
+	if err := json.Unmarshal([]byte(tagsJSON), &link.Tags); err != nil {
+		return links.Link{}, fmt.Errorf("decode link tags: %w", err)
+	}
+	if len(link.Tags) == 0 {
+		link.Tags = []string{}
 	}
 
 	link.Enabled = enabled != 0
