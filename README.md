@@ -1,69 +1,132 @@
-# shorturl（极简自用）
+# shorturl
 
-## 启动（Docker Compose：本地构建）
+一个按 ForgeBase 架构整理过的短链项目，内置：
 
-1. 准备环境变量（推荐在根目录创建 `.env`，`docker compose` 会自动读取；该文件已在 `.gitignore` 中忽略）：
+- Go 1.24 + Gin API 服务
+- React 18 + Vite 管理后台
+- SQLite 持久化
+- Docker Compose 本地运行
+- GitHub Actions CI
 
-```ini
-# 对外暴露端口（宿主机端口）
-PUBLISHED_PORT=38080
+当前项目保留了短链核心能力：
 
-# 首次初始化管理员（数据库为空时必填 ADMIN_PASSWORD）
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=change-me
+- `GET /:code` 短链跳转
+- 管理后台账号密码登录
+- 短链列表、新建、编辑、启用/禁用、点击统计
 
-# Cookie 签名密钥（建议随机长字符串；不设置会导致重启后登录失效）
-SESSION_SECRET=change-me-too
+## 目录结构
 
-# 容器内数据库路径（配合 volumes: ./data:/data 使用）
-DB_PATH=/data/shorturl.db
-```
+- [cmd/shorturl](./cmd/shorturl)：服务入口
+- [internal/config](./internal/config)：环境变量加载
+- [internal/httpapi](./internal/httpapi)：管理 API、静态托管、公开跳转路由
+- [internal/links](./internal/links)：短链领域服务和类型
+- [internal/store/sqlite](./internal/store/sqlite)：SQLite 仓储和管理员鉴权
+- [web/admin](./web/admin)：React 管理后台
+- [api_test](./api_test)：httpyac 示例请求
 
-2. 启动（本地构建镜像）：
+## 快速开始
 
-```bash
-docker compose up --build
-```
-
-- 后台：`http://localhost:<PUBLISHED_PORT>/admin/login`（`PUBLISHED_PORT` 默认 `38080`）
-- 访问短链：`http://localhost:<PUBLISHED_PORT>/<code>`
-
-如果本机端口有冲突，可以临时覆盖：
+1. 复制环境变量模板：
 
 ```bash
-PUBLISHED_PORT=38081 docker compose up --build
+cp .env.example .env
 ```
 
-## 启动（Docker Hub 镜像）
+2. 至少配置以下变量：
 
-你已发布镜像：`asffda/shorturl:latest`。
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `SESSION_SECRET`
 
-最小可用（建议带数据卷持久化）：
+3. 启动服务：
 
 ```bash
-docker pull asffda/shorturl:latest
-
-docker run --rm -p 38080:8080 \
-  -v "$(pwd)/data:/data" \
-  -e ADMIN_USERNAME=admin \
-  -e ADMIN_PASSWORD=change-me \
-  -e SESSION_SECRET=change-me-too \
-  -e DB_PATH=/data/shorturl.db \
-  asffda/shorturl:latest
+make run
 ```
+
+默认地址：
+
+- API 健康检查：`http://localhost:8080/healthz`
+- Admin：`http://localhost:8080/admin`
+- 短链访问：`http://localhost:8080/<code>`
+
+## 本地开发
+
+常用命令：
+
+- `make fmt`：格式化 Go 代码
+- `make tidy`：整理 Go 依赖
+- `make test`：运行 Go 测试
+- `make build`：构建后端二进制到 `bin/shorturl`
+- `make admin-install`：安装前端依赖
+- `make admin-dev`：启动前端开发服务器
+- `make admin-test`：运行前端测试
+- `make admin-build`：构建管理后台静态资源
+- `make docker-build`：构建 Docker 镜像
+- `make docker-up`：通过 Docker Compose 启动
+- `make docker-down`：停止 Docker Compose
+- `make docker-logs`：查看容器日志
+
+前端开发时，Vite 默认把 `/admin/api` 代理到 `http://localhost:${PORT:-8080}`。
 
 ## 环境变量
 
-应用支持的环境变量：
-
-- `HOST`：默认 `0.0.0.0`
-- `PORT`：默认 `8080`
-- `DB_PATH`：默认 `./data/shorturl.db`（容器里通常用 `/data/shorturl.db` 并挂载数据卷）
-- `ADMIN_USERNAME`：默认 `admin`（仅首次初始化生效；数据库已有用户时不会再改）
-- `ADMIN_PASSWORD`：数据库为空时必填，用于初始化管理员
-- `SESSION_SECRET`：用于登录 Cookie 签名；建议设置随机长字符串（不设置会导致重启后登录失效）
-- `COOKIE_SECURE`：`true/false`，https 部署时建议 `true`
+- `HOST`：服务监听地址，默认 `0.0.0.0`
+- `PORT`：服务端口，默认 `8080`
+- `DB_PATH`：SQLite 文件路径，默认 `./data/shorturl.db`
+- `ADMIN_USERNAME`：数据库为空时初始化管理员用户名，默认 `admin`
+- `ADMIN_PASSWORD`：数据库为空时初始化管理员密码，必填
+- `SESSION_SECRET`：登录 Cookie 签名密钥，建议设置随机长字符串
+- `COOKIE_SECURE`：`true/false`，HTTPS 部署时建议 `true`
+- `ADMIN_STATIC_DIR`：React 管理后台构建产物路径，默认 `./web/admin/dist`
 
 Docker Compose 额外使用：
 
-- `PUBLISHED_PORT`：宿主机暴露端口（映射到容器 `8080`）
+- `PUBLISHED_PORT`：宿主机暴露端口，默认 `38080`
+
+## 管理 API
+
+- `POST /admin/api/v1/auth/login`
+- `POST /admin/api/v1/auth/logout`
+- `GET /admin/api/v1/auth/session`
+- `GET /admin/api/v1/links`
+- `POST /admin/api/v1/links`
+- `PUT /admin/api/v1/links/:id`
+
+接口统一返回：
+
+```json
+{
+  "success": true,
+  "data": {}
+}
+```
+
+失败时：
+
+```json
+{
+  "success": false,
+  "error": "invalid_request"
+}
+```
+
+## Docker Compose
+
+```bash
+docker compose up -d --build
+```
+
+说明：
+
+- 服务监听宿主机 `${PUBLISHED_PORT:-38080}`
+- SQLite 数据库存放在宿主机 `./data`
+- 管理后台构建产物在镜像构建阶段自动打包
+
+## 验证
+
+可以直接使用 `api_test/*.http`：
+
+- `admin.http`：登录、会话、退出
+- `links.http`：列表、新建、更新
+- `redirect.http`：短链跳转

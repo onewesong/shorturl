@@ -1,0 +1,6 @@
+@baseUrl = http://localhost:38080
+
+### 健康检查
+GET {{baseUrl}}/healthz
+
+?? status == 200

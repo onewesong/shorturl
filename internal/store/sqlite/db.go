@@ -1,10 +1,12 @@
-package db
+package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -18,19 +20,20 @@ func Open(path string) (*sql.DB, error) {
 	}
 
 	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)", path)
-	db, err := sql.Open("sqlite", dsn)
+	database, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
-	if err := db.Ping(); err != nil {
-		_ = db.Close()
+	if err := database.Ping(); err != nil {
+		_ = database.Close()
 		return nil, err
 	}
-	return db, nil
+
+	return database, nil
 }
 
-func Migrate(db *sql.DB) error {
-	stmts := []string{
+func Init(ctx context.Context, db *sql.DB) error {
+	statements := []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			username TEXT NOT NULL UNIQUE,
@@ -49,11 +52,18 @@ func Migrate(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_links_code ON links(code);`,
 	}
 
-	for _, s := range stmts {
-		if _, err := db.Exec(s); err != nil {
+	for _, statement := range statements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "UNIQUE constraint failed")
+}

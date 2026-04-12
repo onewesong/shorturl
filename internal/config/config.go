@@ -6,26 +6,28 @@ import (
 )
 
 type Config struct {
-	Host          string
-	Port          int
-	GinMode       string
-	DBPath        string
-	AdminUsername string
-	AdminPassword string
-	SessionSecret string
-	CookieSecure  bool
+	Host           string
+	Port           int
+	GinMode        string
+	DBPath         string
+	AdminStaticDir string
+	AdminUsername  string
+	AdminPassword  string
+	SessionSecret  string
+	CookieSecure   bool
 }
 
 func FromEnv() *Config {
 	cfg := &Config{
-		Host:          getenv("HOST", "0.0.0.0"),
-		Port:          getenvInt("PORT", 8080),
-		GinMode:       getenv("GIN_MODE", "release"),
-		DBPath:        getenv("DB_PATH", "./data/shorturl.db"),
-		AdminUsername: getenv("ADMIN_USERNAME", "admin"),
-		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
-		SessionSecret: os.Getenv("SESSION_SECRET"),
-		CookieSecure:  getenvBool("COOKIE_SECURE", false),
+		Host:           getenv("HOST", "0.0.0.0"),
+		Port:           getenvInt("PORT", 8080),
+		GinMode:        getenv("GIN_MODE", "release"),
+		DBPath:         getenv("DB_PATH", "./data/shorturl.db"),
+		AdminStaticDir: getenv("ADMIN_STATIC_DIR", "./web/admin/dist"),
+		AdminUsername:  getenv("ADMIN_USERNAME", "admin"),
+		AdminPassword:  os.Getenv("ADMIN_PASSWORD"),
+		SessionSecret:  os.Getenv("SESSION_SECRET"),
+		CookieSecure:   getenvBool("COOKIE_SECURE", false),
 	}
 	return cfg
 }
@@ -65,4 +67,3 @@ func getenvBool(k string, def bool) bool {
 	}
 	return b
 }
-

@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"embed"
 	"errors"
-	"html/template"
-	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,59 +12,45 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
-	"github.com/gin-gonic/gin"
 
 	"github.com/mine/shorturl/internal/config"
-	"github.com/mine/shorturl/internal/db"
+	"github.com/mine/shorturl/internal/httpapi"
+	"github.com/mine/shorturl/internal/links"
 	"github.com/mine/shorturl/internal/shortcode"
+	sqlitestore "github.com/mine/shorturl/internal/store/sqlite"
 )
 
-//go:embed web/templates/*.gohtml web/static/*
-var embeddedAssets embed.FS
-
 func main() {
-	cfg := config.FromEnv()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
 
-	if cfg.GinMode != "" {
-		gin.SetMode(cfg.GinMode)
-	}
+	cfg := config.FromEnv()
 
 	storeKey := cfg.SessionSecret
 	if storeKey == "" {
 		storeKey = shortcode.MustRandomString(32)
-		log.Printf("WARN: SESSION_SECRET 未设置，已生成临时密钥（重启会使登录失效）")
+		logger.Warn("SESSION_SECRET 未设置，已生成临时密钥（重启会使登录失效）")
 	}
 
-	database, err := db.Open(cfg.DBPath)
+	database, err := sqlitestore.Open(cfg.DBPath)
 	if err != nil {
-		log.Fatalf("open db: %v", err)
+		logger.Error("open database failed", "error", err)
+		os.Exit(1)
 	}
 	defer database.Close()
 
-	if err := db.Migrate(database); err != nil {
-		log.Fatalf("migrate db: %v", err)
+	ctx := context.Background()
+	if err := sqlitestore.Init(ctx, database); err != nil {
+		logger.Error("init database failed", "error", err)
+		os.Exit(1)
 	}
 
-	if err := db.EnsureAdmin(database, cfg.AdminUsername, cfg.AdminPassword); err != nil {
-		log.Fatalf("ensure admin: %v", err)
+	userRepo := sqlitestore.NewUserRepository(database)
+	if err := userRepo.EnsureAdmin(ctx, cfg.AdminUsername, cfg.AdminPassword); err != nil {
+		logger.Error("ensure admin failed", "error", err)
+		os.Exit(1)
 	}
-
-	tplFS, err := fs.Sub(embeddedAssets, "web/templates")
-	if err != nil {
-		log.Fatalf("sub templates: %v", err)
-	}
-	templates, err := template.ParseFS(tplFS, "*.gohtml")
-	if err != nil {
-		log.Fatalf("parse templates: %v", err)
-	}
-
-	staticFS, err := fs.Sub(embeddedAssets, "web/static")
-	if err != nil {
-		log.Fatalf("sub static: %v", err)
-	}
-
-	router := gin.New()
-	router.Use(gin.Logger(), gin.Recovery())
 
 	sessionStore := cookie.NewStore([]byte(storeKey))
 	sessionStore.Options(sessions.Options{
@@ -77,13 +60,10 @@ func main() {
 		SameSite: http.SameSiteLaxMode,
 		Secure:   cfg.CookieSecure,
 	})
-	router.Use(sessions.Sessions("shorturl_session", sessionStore))
 
-	router.SetHTMLTemplate(templates)
-	router.StaticFS("/static", http.FS(staticFS))
-
-	app := newApp(cfg, database)
-	app.registerRoutes(router)
+	linkRepo := sqlitestore.NewLinkRepository(database)
+	linkService := links.NewService(linkRepo)
+	router := httpapi.NewRouter(logger, sessionStore, cfg.AdminStaticDir, linkService, userRepo)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr(),
@@ -92,9 +72,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("listening on http://%s", cfg.Addr())
+		logger.Info("shorturl server started", "addr", cfg.Addr(), "database", cfg.DBPath)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("listen: %v", err)
+			logger.Error("listen server failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 

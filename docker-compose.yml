@@ -1,12 +1,21 @@
 services:
   shorturl:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shorturl:latest
+    container_name: shorturl
+    restart: unless-stopped
     ports:
       - "${PUBLISHED_PORT:-38080}:8080"
     environment:
+      HOST: "0.0.0.0"
+      PORT: "8080"
       ADMIN_USERNAME: "${ADMIN_USERNAME?ADMIN_USERNAME 未设置}"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD?ADMIN_PASSWORD 未设置}"
       SESSION_SECRET: "${SESSION_SECRET?SESSION_SECRET 未设置}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
       DB_PATH: "${DB_PATH:-/data/shorturl.db}"
+      ADMIN_STATIC_DIR: "./web/admin/dist"
     volumes:
       - ./data:/data

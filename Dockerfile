@@ -1,26 +1,48 @@
-FROM node:20-alpine AS webbuild
-WORKDIR /app
-COPY cmd/shorturl/package.json cmd/shorturl/package-lock.json* ./
-RUN npm install
-COPY cmd/shorturl/web/tailwind ./web/tailwind
-COPY cmd/shorturl/web/templates ./web/templates
-RUN npx tailwindcss -c ./web/tailwind/tailwind.config.js -i ./web/tailwind/input.css -o ./web/static/app.css --minify
+FROM node:24-bookworm-slim AS admin-builder
 
-FROM golang:1.23-bookworm AS gobuild
+WORKDIR /src/web/admin
+
+COPY web/admin/package.json web/admin/package-lock.json ./
+RUN npm ci
+
+COPY web/admin/ ./
+RUN npm run build
+
+
+FROM golang:1.24-bookworm AS go-builder
+
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
 WORKDIR /src
+
 COPY go.mod go.sum ./
 RUN go mod download
-COPY . .
-COPY --from=webbuild /app/web/static/app.css ./cmd/shorturl/web/static/app.css
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/shorturl ./cmd/shorturl
 
-FROM debian:bookworm-slim
-WORKDIR /
+COPY cmd ./cmd
+COPY internal ./internal
+COPY --from=admin-builder /src/web/admin/dist ./web/admin/dist
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath -ldflags="-s -w" -o /out/shorturl ./cmd/shorturl
+
+
+FROM debian:bookworm-slim AS runtime
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
+
+COPY --from=go-builder /out/shorturl /app/shorturl
+COPY --from=go-builder /src/web/admin/dist /app/web/admin/dist
+
+RUN mkdir -p /data
+
 ENV HOST=0.0.0.0
 ENV PORT=8080
 ENV DB_PATH=/data/shorturl.db
-VOLUME ["/data"]
-COPY --from=gobuild /out/shorturl /shorturl
-RUN mkdir -p /data
+ENV ADMIN_STATIC_DIR=./web/admin/dist
+
 EXPOSE 8080
-ENTRYPOINT ["/shorturl"]
+
+CMD ["/app/shorturl"]
