@@ -1,3 +1,5 @@
+<div align="center">
+
 # shorturl
 
 一个轻量的短链服务，提供 Go API、React 管理后台、SQLite 持久化，以及面向增长场景的访问分析能力。
@@ -6,7 +8,10 @@
 [![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go)](https://go.dev/)
 [![Admin](https://img.shields.io/badge/Admin-React%2018%20%2B%20Vite-646CFF?logo=react)](./web/admin)
 [![SQLite](https://img.shields.io/badge/DB-SQLite-003B57?logo=sqlite)](https://www.sqlite.org/index.html)
+[![Docker](https://img.shields.io/badge/Docker-GHCR-2496ED?logo=docker)](https://github.com/onewesong/shorturl/pkgs/container/shorturl)
 [![Analytics](https://img.shields.io/badge/Analytics-IP%20%2F%20UA%20%2F%20Trend-E67E22)](#访问分析)
+
+</div>
 
 `shorturl` 适合做内部营销跳转、渠道投放跟踪、短链管理和访问数据回看。当前版本已经支持短链访问明细、来源域名、客户端识别和近 7/30 天访问曲线。
 
@@ -78,6 +83,12 @@ docker compose up -d --build
 - 服务监听宿主机 `${PUBLISHED_PORT:-38080}`
 - SQLite 数据库存放在宿主机 `./data`
 - 管理后台构建产物会在镜像构建阶段自动打包
+
+GitHub Actions 镜像发布规则：
+
+- push 到 `main`: 发布 `ghcr.io/onewesong/shorturl:edge` 和 `sha-*`
+- push tag 如 `v1.2.3`: 发布 `v1.2.3`、`1.2`、`1`、`latest`
+- 其他分支 push / PR: 只构建镜像，不推送
 
 ## 环境变量
 
