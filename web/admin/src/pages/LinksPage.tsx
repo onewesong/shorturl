@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ApiError, createLink, getLinkAnalytics, updateLink } from "../lib/api";
 import type { AuthSession, CreateLinkInput, Link, LinkAnalytics, UpdateLinkInput } from "../types";
@@ -18,6 +18,7 @@ type ModalState = { type: "create" } | { type: "edit"; link: Link } | null;
 export function LinksPage({ session, links, isLoading, error, onReload, onLogout }: Props) {
   const [modal, setModal] = useState<ModalState>(null);
   const [activeTag, setActiveTag] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [actionError, setActionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,9 +27,20 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
   const [analytics, setAnalytics] = useState<LinkAnalytics | null>(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+  const [copiedLinkId, setCopiedLinkId] = useState<number | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const copyResetTimerRef = useRef<number | null>(null);
 
   const availableTags = Array.from(new Set(links.flatMap((link) => link.tags))).sort((left, right) => left.localeCompare(right));
-  const filteredLinks = activeTag ? links.filter((link) => link.tags.includes(activeTag)) : links;
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredLinks = links.filter((link) => {
+    const matchesTag = activeTag ? link.tags.includes(activeTag) : true;
+    const matchesSearch = normalizedSearchQuery
+      ? [link.code, link.target_url, link.remark, ...link.tags].some((value) => value.toLowerCase().includes(normalizedSearchQuery))
+      : true;
+
+    return matchesTag && matchesSearch;
+  });
   const selectedLink = filteredLinks.find((item) => item.id === selectedLinkId) ?? links.find((item) => item.id === selectedLinkId) ?? null;
 
   const summary = {
@@ -36,6 +48,42 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
     enabled: filteredLinks.filter((link) => link.enabled).length,
     clicks: filteredLinks.reduce((total, link) => total + link.click_count, 0),
   };
+  const emptyStateMessage = normalizedSearchQuery
+    ? `没有匹配关键词 ${searchQuery.trim()} 的短链`
+    : activeTag
+      ? `没有命中标签 ${activeTag} 的短链`
+      : "暂无短链";
+
+  useEffect(() => {
+    function handleSearchShortcut(event: KeyboardEvent) {
+      if (event.key !== "/" || modal || selectedLinkId) {
+        return;
+      }
+
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tagName = target.tagName.toLowerCase();
+        if (target.isContentEditable || tagName === "input" || tagName === "textarea" || tagName === "select") {
+          return;
+        }
+      }
+
+      event.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    }
+
+    window.addEventListener("keydown", handleSearchShortcut);
+    return () => window.removeEventListener("keydown", handleSearchShortcut);
+  }, [modal, selectedLinkId]);
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimerRef.current) {
+        window.clearTimeout(copyResetTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedLinkId) {
@@ -120,6 +168,33 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
     }, "短链已更新");
   }
 
+  async function handleCopyShortLink(link: Link) {
+    setActionError("");
+    setSuccessMessage("");
+
+    if (!navigator.clipboard) {
+      setActionError("当前浏览器不支持一键复制");
+      return;
+    }
+
+    const shortUrl = new URL(`/${link.code}`, window.location.origin).toString();
+
+    try {
+      await navigator.clipboard.writeText(shortUrl);
+      setCopiedLinkId(link.id);
+
+      if (copyResetTimerRef.current) {
+        window.clearTimeout(copyResetTimerRef.current);
+      }
+
+      copyResetTimerRef.current = window.setTimeout(() => {
+        setCopiedLinkId(null);
+      }, 1600);
+    } catch {
+      setActionError("复制短链失败");
+    }
+  }
+
   return (
     <main className="dashboard-shell">
       <section className="hero-panel">
@@ -167,13 +242,33 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
           <div>
             <p className="eyebrow">Links</p>
             <h2>跳转规则列表</h2>
-            {activeTag && (
+            {(activeTag || normalizedSearchQuery) && (
               <p className="muted-copy">
-                当前按标签 <strong>{activeTag}</strong> 筛选
+                当前按{activeTag && <>标签 <strong>{activeTag}</strong></>}
+                {activeTag && normalizedSearchQuery && " 和"}
+                {normalizedSearchQuery && <>关键词 <strong>{searchQuery.trim()}</strong></>}筛选
               </p>
             )}
           </div>
-          <span className="status-pill">{isLoading ? "加载中..." : `${filteredLinks.length} links`}</span>
+          <div className="table-tools">
+            <label className="search-control">
+              <span className="visually-hidden">搜索短链</span>
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                aria-label="搜索短链"
+                placeholder="搜索短码、目标地址、备注或标签"
+              />
+              <span className="search-shortcut" aria-hidden="true">/</span>
+              {searchQuery && (
+                <button type="button" className="search-clear-button" onClick={() => setSearchQuery("")} aria-label="清空搜索">
+                  ×
+                </button>
+              )}
+            </label>
+            <span className="status-pill">{isLoading ? "加载中..." : `${filteredLinks.length} links`}</span>
+          </div>
         </div>
 
         {availableTags.length > 0 && (
@@ -224,6 +319,22 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
                       >
                         {link.code}
                       </a>
+                      <button
+                        type="button"
+                        className="copy-link-button"
+                        onClick={() => void handleCopyShortLink(link)}
+                        aria-label={`复制 ${link.code} 短链`}
+                        title={copiedLinkId === link.id ? "已复制" : "复制短链"}
+                      >
+                        {copiedLinkId === link.id ? (
+                          <span aria-hidden="true">✓</span>
+                        ) : (
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M8 8.5a2.5 2.5 0 0 1 2.5-2.5h6A2.5 2.5 0 0 1 19 8.5v6a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 8 14.5v-6Z" />
+                            <path d="M6 14.5h-.5A2.5 2.5 0 0 1 3 12V5.5A2.5 2.5 0 0 1 5.5 3H12a2.5 2.5 0 0 1 2.5 2.5V6" />
+                          </svg>
+                        )}
+                      </button>
                     </div>
                   </td>
                   <td className="target-url-cell">
@@ -290,9 +401,7 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
               {filteredLinks.length === 0 && (
                 <tr>
                   <td colSpan={6}>
-                    <div className="empty-state">
-                      {activeTag ? `没有命中标签 ${activeTag} 的短链` : "暂无短链"}
-                    </div>
+                    <div className="empty-state">{emptyStateMessage}</div>
                   </td>
                 </tr>
               )}
@@ -302,16 +411,31 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
       </section>
 
       {selectedLink && (
-        <section className="analytics-card">
-          <div className="table-header">
-            <div>
-              <p className="eyebrow">Analytics</p>
-              <h2>{selectedLink.code} 的访问分析</h2>
-              <p className="muted-copy">
-                看最近访问 IP、来源域名、客户端类型，以及 {analyticsDays} 天访问曲线。
-              </p>
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal-card analytics-modal-card" role="dialog" aria-modal="true" aria-labelledby="analytics-modal-title">
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Analytics</p>
+                <h2 id="analytics-modal-title">{selectedLink.code} 的访问分析</h2>
+                <p className="muted-copy">
+                  看最近访问 IP、来源域名、客户端类型，以及 {analyticsDays} 天访问曲线。
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-button"
+                onClick={() => {
+                  setSelectedLinkId(null);
+                  setAnalytics(null);
+                  setAnalyticsError("");
+                }}
+                aria-label="关闭分析弹窗"
+              >
+                ×
+              </button>
             </div>
-            <div className="hero-actions">
+
+            <div className="analytics-modal-toolbar">
               {[7, 30].map((days) => (
                 <button
                   key={days}
@@ -323,135 +447,135 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
                 </button>
               ))}
             </div>
-          </div>
 
-          {analyticsError && <p className="error-banner">{analyticsError}</p>}
-          {isLoadingAnalytics && <p className="muted-copy">正在加载分析数据...</p>}
+            {analyticsError && <p className="error-banner">{analyticsError}</p>}
+            {isLoadingAnalytics && <p className="muted-copy">正在加载分析数据...</p>}
 
-          {analytics && (
-            <>
-              <section className="analytics-summary-grid">
-                <article className="summary-card">
-                  <span className="summary-label">窗口点击</span>
-                  <strong>{analytics.recent_clicks}</strong>
-                </article>
-                <article className="summary-card">
-                  <span className="summary-label">独立 IP</span>
-                  <strong>{analytics.unique_ips}</strong>
-                </article>
-                <article className="summary-card">
-                  <span className="summary-label">累计点击</span>
-                  <strong>{analytics.link.click_count}</strong>
-                </article>
-                <article className="summary-card">
-                  <span className="summary-label">最近访问</span>
-                  <strong className="summary-meta">
-                    {analytics.last_visited_at ? formatDateTime(analytics.last_visited_at) : "暂无"}
-                  </strong>
-                </article>
-              </section>
+            {analytics && (
+              <>
+                <section className="analytics-summary-grid">
+                  <article className="summary-card">
+                    <span className="summary-label">窗口点击</span>
+                    <strong>{analytics.recent_clicks}</strong>
+                  </article>
+                  <article className="summary-card">
+                    <span className="summary-label">独立 IP</span>
+                    <strong>{analytics.unique_ips}</strong>
+                  </article>
+                  <article className="summary-card">
+                    <span className="summary-label">累计点击</span>
+                    <strong>{analytics.link.click_count}</strong>
+                  </article>
+                  <article className="summary-card">
+                    <span className="summary-label">最近访问</span>
+                    <strong className="summary-meta">
+                      {analytics.last_visited_at ? formatDateTime(analytics.last_visited_at) : "暂无"}
+                    </strong>
+                  </article>
+                </section>
 
-              <section className="analytics-grid">
-                <article className="insight-card">
-                  <div className="insight-header">
-                    <h3>访问曲线</h3>
-                    <span className="status-pill">{analytics.range_days} 天</span>
-                  </div>
-                  <div className="sparkline" aria-label="访问曲线">
-                    {analytics.time_series.map((point) => (
-                      <div key={point.bucket} className="sparkline-item">
-                        <div
-                          className="sparkline-bar"
-                          style={{ height: `${Math.max((point.clicks / maxClicks(analytics.time_series)) * 100, point.clicks > 0 ? 16 : 4)}%` }}
-                          title={`${point.bucket} · ${point.clicks} 次`}
-                        />
-                        <span>{point.bucket.slice(5)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-
-                <article className="insight-card">
-                  <div className="insight-header">
-                    <h3>来源分布</h3>
-                    <span className="muted-copy">Top Referrers</span>
-                  </div>
-                  <div className="breakdown-list">
-                    {analytics.top_referrers.length > 0 ? (
-                      analytics.top_referrers.map((item) => (
-                        <div key={item.name} className="breakdown-row">
-                          <span>{item.name}</span>
-                          <strong>{item.count}</strong>
+                <section className="analytics-grid">
+                  <article className="insight-card">
+                    <div className="insight-header">
+                      <h3>访问曲线</h3>
+                      <span className="status-pill">{analytics.range_days} 天</span>
+                    </div>
+                    <div className="sparkline" aria-label="访问曲线">
+                      {analytics.time_series.map((point) => (
+                        <div key={point.bucket} className="sparkline-item">
+                          <div
+                            className="sparkline-bar"
+                            style={{ height: `${Math.max((point.clicks / maxClicks(analytics.time_series)) * 100, point.clicks > 0 ? 16 : 4)}%` }}
+                            title={`${point.bucket} · ${point.clicks} 次`}
+                          />
+                          <span>{point.bucket.slice(5)}</span>
                         </div>
-                      ))
-                    ) : (
-                      <p className="muted-copy">暂无来源数据</p>
-                    )}
-                  </div>
-                </article>
-
-                <article className="insight-card">
-                  <div className="insight-header">
-                    <h3>客户端分布</h3>
-                    <span className="muted-copy">Top Clients</span>
-                  </div>
-                  <div className="breakdown-list">
-                    {analytics.top_clients.length > 0 ? (
-                      analytics.top_clients.map((item) => (
-                        <div key={item.name} className="breakdown-row">
-                          <span>{item.name}</span>
-                          <strong>{item.count}</strong>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="muted-copy">暂无客户端数据</p>
-                    )}
-                  </div>
-                </article>
-              </section>
-
-              <section className="insight-card">
-                <div className="insight-header">
-                  <h3>最近访问明细</h3>
-                  <span className="muted-copy">按时间倒序展示最近 20 次访问</span>
-                </div>
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>访问时间</th>
-                        <th>来源 IP</th>
-                        <th>来源域名</th>
-                        <th>客户端</th>
-                        <th>设备 / 系统</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analytics.recent_visits.map((visit) => (
-                        <tr key={`${visit.visited_at}-${visit.ip_masked}-${visit.user_agent}`}>
-                          <td>{formatDateTime(visit.visited_at)}</td>
-                          <td>{visit.ip_masked || "未知"}</td>
-                          <td title={visit.referer || "直接访问"}>{visit.referer_host || "直接访问"}</td>
-                          <td>{visit.client_name}</td>
-                          <td>
-                            {visit.device_type} / {visit.os}
-                          </td>
-                        </tr>
                       ))}
-                      {analytics.recent_visits.length === 0 && (
-                        <tr>
-                          <td colSpan={5}>
-                            <div className="empty-state">该短链还没有访问明细</div>
-                          </td>
-                        </tr>
+                    </div>
+                  </article>
+
+                  <article className="insight-card">
+                    <div className="insight-header">
+                      <h3>来源分布</h3>
+                      <span className="muted-copy">Top Referrers</span>
+                    </div>
+                    <div className="breakdown-list">
+                      {analytics.top_referrers.length > 0 ? (
+                        analytics.top_referrers.map((item) => (
+                          <div key={item.name} className="breakdown-row">
+                            <span>{item.name}</span>
+                            <strong>{item.count}</strong>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="muted-copy">暂无来源数据</p>
                       )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </>
-          )}
-        </section>
+                    </div>
+                  </article>
+
+                  <article className="insight-card">
+                    <div className="insight-header">
+                      <h3>客户端分布</h3>
+                      <span className="muted-copy">Top Clients</span>
+                    </div>
+                    <div className="breakdown-list">
+                      {analytics.top_clients.length > 0 ? (
+                        analytics.top_clients.map((item) => (
+                          <div key={item.name} className="breakdown-row">
+                            <span>{item.name}</span>
+                            <strong>{item.count}</strong>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="muted-copy">暂无客户端数据</p>
+                      )}
+                    </div>
+                  </article>
+                </section>
+
+                <section className="insight-card">
+                  <div className="insight-header">
+                    <h3>最近访问明细</h3>
+                    <span className="muted-copy">按时间倒序展示最近 20 次访问</span>
+                  </div>
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>访问时间</th>
+                          <th>来源 IP</th>
+                          <th>来源域名</th>
+                          <th>客户端</th>
+                          <th>设备 / 系统</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analytics.recent_visits.map((visit) => (
+                          <tr key={`${visit.visited_at}-${visit.ip_masked}-${visit.user_agent}`}>
+                            <td>{formatDateTime(visit.visited_at)}</td>
+                            <td>{visit.ip_masked || "未知"}</td>
+                            <td title={visit.referer || "直接访问"}>{visit.referer_host || "直接访问"}</td>
+                            <td>{visit.client_name}</td>
+                            <td>
+                              {visit.device_type} / {visit.os}
+                            </td>
+                          </tr>
+                        ))}
+                        {analytics.recent_visits.length === 0 && (
+                          <tr>
+                            <td colSpan={5}>
+                              <div className="empty-state">该短链还没有访问明细</div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </>
+            )}
+          </section>
+        </div>
       )}
 
       {modal?.type === "create" && (

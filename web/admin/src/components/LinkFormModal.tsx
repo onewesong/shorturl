@@ -78,15 +78,15 @@ export function LinkFormModal({ mode, link, isSubmitting, error, onClose, onSubm
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="modal-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+    <div className="modal-backdrop" role="presentation">
+      <div className="modal-card" role="dialog" aria-modal="true">
         <div className="modal-header">
           <div>
             <p className="eyebrow">{mode === "create" ? "新建短链" : "编辑短链"}</p>
             <h2>{mode === "create" ? "创建跳转规则" : `编辑 ${link?.code}`}</h2>
           </div>
-          <button type="button" className="ghost-button" onClick={onClose}>
-            关闭
+          <button type="button" className="modal-close-button" onClick={onClose} aria-label="关闭弹窗">
+            ×
           </button>
         </div>
 
@@ -142,9 +142,6 @@ export function LinkFormModal({ mode, link, isSubmitting, error, onClose, onSubm
           {(validation || error) && <p className="error-banner">{validation || error}</p>}
 
           <div className="modal-actions">
-            <button type="button" className="ghost-button" onClick={onClose}>
-              取消
-            </button>
             <button type="submit" className="primary-button" disabled={isSubmitting}>
               {isSubmitting ? "提交中..." : mode === "create" ? "创建短链" : "保存修改"}
             </button>

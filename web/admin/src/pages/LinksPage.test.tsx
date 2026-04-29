@@ -95,6 +95,66 @@ describe("LinksPage", () => {
     });
   });
 
+  it("copies short link when copy icon is clicked", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <LinksPage
+        session={session}
+        links={links}
+        isLoading={false}
+        error=""
+        onReload={vi.fn().mockResolvedValue(undefined)}
+        onLogout={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "复制 demo 短链" }));
+
+    expect(writeText).toHaveBeenCalledWith("http://localhost:3000/demo");
+  });
+
+  it("focuses search with slash shortcut and filters links", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <LinksPage
+        session={session}
+        links={[
+          ...links,
+          {
+            id: 2,
+            code: "other",
+            target_url: "https://example.com/other",
+            remark: "其他链接",
+            tags: ["marketing"],
+            enabled: true,
+            click_count: 1,
+          },
+        ]}
+        isLoading={false}
+        error=""
+        onReload={vi.fn().mockResolvedValue(undefined)}
+        onLogout={vi.fn()}
+      />,
+    );
+
+    await user.keyboard("/");
+    expect(screen.getByRole("textbox", { name: "搜索短链" })).toHaveFocus();
+
+    await user.keyboard("other");
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "other" })).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "demo" })).not.toBeInTheDocument();
+    });
+  });
+
   it("opens edit modal", async () => {
     const user = userEvent.setup();
 
