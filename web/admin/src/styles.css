@@ -167,6 +167,20 @@ textarea {
   transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease, background-color 120ms ease;
 }
 
+.button-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-text-button {
+  padding-inline: 14px;
+}
+
 .primary-button:hover,
 .secondary-button:hover,
 .ghost-button:hover {
@@ -206,14 +220,18 @@ textarea {
   display: flex;
   justify-content: space-between;
   gap: 24px;
-  align-items: flex-start;
+  align-items: center;
   width: min(1280px, 100%);
-  margin: 0 auto 20px;
-  padding: 28px 32px;
-  border-radius: 28px;
+  margin: 0 auto 18px;
+  padding: 18px 24px;
+  border-radius: 24px;
   background: var(--surface);
   border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-soft);
+}
+
+.hero-brand {
+  min-width: 0;
 }
 
 .hero-panel > div:first-child {
@@ -223,6 +241,57 @@ textarea {
 .hero-panel h1 {
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.08;
+}
+
+.admin-logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-logo-mark {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  color: white;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 44%),
+    linear-gradient(135deg, #3159d0 0%, #43c8a2 100%);
+  box-shadow: 0 18px 34px rgba(59, 109, 246, 0.24);
+}
+
+.admin-logo-mark svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-logo-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-logo-name {
+  color: #17223a;
+  font-size: clamp(2rem, 3.2vw, 2.7rem);
+  font-weight: 760;
+  line-height: 0.9;
+  letter-spacing: 0;
+}
+
+.admin-logo-subtitle {
+  color: #607092;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 .hero-actions,
@@ -237,6 +306,35 @@ textarea {
 .hero-actions {
   justify-content: flex-end;
   flex-shrink: 0;
+}
+
+.header-account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 4px 12px 4px 5px;
+  border-radius: 999px;
+  color: #24314d;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(120, 136, 165, 0.16);
+  font-weight: 700;
+}
+
+.header-account-chip span {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: white;
+  background: linear-gradient(135deg, #3159d0 0%, #43c8a2 100%);
+  font-size: 0.9rem;
+}
+
+.header-icon-button {
+  width: 44px;
+  padding: 0;
 }
 
 .summary-grid {
@@ -576,6 +674,11 @@ textarea {
   line-height: 1.05;
 }
 
+.numeric-value {
+  font-variant-numeric: tabular-nums;
+  font-family: "SFMono-Regular", "Roboto Mono", "Cascadia Mono", "Menlo", monospace;
+}
+
 .metric-note {
   margin: 0;
   color: var(--text-soft);
@@ -618,7 +721,7 @@ textarea {
   margin-right: auto;
   margin-left: auto;
   border-radius: 28px;
-  padding: 24px;
+  padding: 28px;
 }
 
 .panel-header,
@@ -1000,13 +1103,24 @@ tbody tr:hover,
 }
 
 .shortcode-link {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 10px;
   color: #3159d0;
+  background: rgba(59, 109, 246, 0.09);
   font-weight: 700;
   text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shortcode-link:hover {
-  text-decoration: underline;
+  background: rgba(59, 109, 246, 0.14);
+  text-decoration: none;
 }
 
 .copy-link-button {
@@ -1045,6 +1159,70 @@ tbody tr:hover,
 .tag-empty {
   color: var(--text-soft);
   font-size: 0.9rem;
+}
+
+.tag-empty {
+  color: var(--text-faint);
+}
+
+.switch-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 3px 10px 3px 4px;
+  border: 0;
+  border-radius: 999px;
+  color: #66758f;
+  background: rgba(132, 145, 167, 0.14);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.switch-button span {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 4px 12px rgba(42, 62, 108, 0.12);
+}
+
+.switch-button-on {
+  color: #278d62;
+  background: rgba(67, 200, 162, 0.18);
+}
+
+.switch-button:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.icon-action-button {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(120, 136, 165, 0.18);
+  border-radius: 12px;
+  color: #4f6387;
+  background: rgba(255, 255, 255, 0.9);
+  transition: transform 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.icon-action-button:hover {
+  transform: translateY(-1px);
+  color: #3159d0;
+  background: rgba(59, 109, 246, 0.1);
+}
+
+.icon-action-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .target-url-cell {
@@ -1131,8 +1309,46 @@ tbody tr:hover,
 }
 
 .summary-card {
-  padding: 20px 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 12px 18px;
+  align-items: end;
+  padding: 24px 26px;
   border-radius: 24px;
+}
+
+.summary-label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.summary-note {
+  grid-column: 1 / -1;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+}
+
+.summary-sparkline {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(4px, 1fr));
+  gap: 4px;
+  align-items: end;
+  height: 46px;
+}
+
+.summary-sparkline span {
+  display: block;
+  min-height: 5px;
+  border-radius: 999px 999px 6px 6px;
+  background: rgba(59, 109, 246, 0.34);
+}
+
+.summary-sparkline-green span {
+  background: rgba(67, 200, 162, 0.42);
+}
+
+.summary-sparkline-violet span {
+  background: rgba(138, 92, 255, 0.36);
 }
 
 .summary-meta {
@@ -1547,6 +1763,39 @@ tbody tr:hover,
 }
 
 @media (max-width: 560px) {
+  .admin-logo-lockup {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .admin-logo-mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+  }
+
+  .admin-logo-mark svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .admin-logo-name {
+    font-size: 2rem;
+  }
+
+  .admin-logo-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .header-account-chip strong,
+  .icon-text-button span {
+    display: none;
+  }
+
+  .header-account-chip {
+    padding-right: 5px;
+  }
+
   .brand-copy strong {
     font-size: 1.6rem;
   }

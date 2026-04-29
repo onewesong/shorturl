@@ -32,12 +32,14 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
   const copyResetTimerRef = useRef<number | null>(null);
 
   const availableTags = Array.from(new Set(links.flatMap((link) => link.tags))).sort((left, right) => left.localeCompare(right));
+  const searchTokens = parseSearchQuery(searchQuery);
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredLinks = links.filter((link) => {
     const matchesTag = activeTag ? link.tags.includes(activeTag) : true;
-    const matchesSearch = normalizedSearchQuery
-      ? [link.code, link.target_url, link.remark, ...link.tags].some((value) => value.toLowerCase().includes(normalizedSearchQuery))
-      : true;
+    const searchableText = [link.code, link.target_url, link.remark, ...link.tags].join(" ").toLowerCase();
+    const matchesText = searchTokens.terms.every((term) => searchableText.includes(term));
+    const matchesSearchTags = searchTokens.tags.every((tag) => link.tags.some((linkTag) => linkTag.toLowerCase().includes(tag)));
+    const matchesSearch = matchesText && matchesSearchTags;
 
     return matchesTag && matchesSearch;
   });
@@ -48,11 +50,18 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
     enabled: filteredLinks.filter((link) => link.enabled).length,
     clicks: filteredLinks.reduce((total, link) => total + link.click_count, 0),
   };
+  const summaryBars = createSummaryBars(filteredLinks);
+  const enabledRate = summary.total > 0 ? Math.round((summary.enabled / summary.total) * 100) : 0;
+  const averageClicks = summary.total > 0 ? Math.round(summary.clicks / summary.total) : 0;
   const emptyStateMessage = normalizedSearchQuery
     ? `没有匹配关键词 ${searchQuery.trim()} 的短链`
     : activeTag
       ? `没有命中标签 ${activeTag} 的短链`
       : "暂无短链";
+
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     function handleSearchShortcut(event: KeyboardEvent) {
@@ -168,6 +177,18 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
     }, "短链已更新");
   }
 
+  async function handleToggleEnabled(link: Link) {
+    await runAction(async () => {
+      await updateLink(link.id, {
+        code: link.code,
+        target_url: link.target_url,
+        remark: link.remark,
+        tags: link.tags,
+        enabled: !link.enabled,
+      });
+    }, link.enabled ? "短链已禁用" : "短链已启用");
+  }
+
   async function handleCopyShortLink(link: Link) {
     setActionError("");
     setSuccessMessage("");
@@ -198,39 +219,65 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
   return (
     <main className="dashboard-shell">
       <section className="hero-panel">
-        <div>
-          <p className="eyebrow">shorturl / admin</p>
-          <h1>短链管理后台</h1>
-          <p className="muted-copy">
-            当前登录账号：<strong>{session.username}</strong>。在这里维护短码、目标地址、启用状态和点击数据。
-          </p>
+        <div className="hero-brand">
+          <h1 className="admin-logo-lockup" aria-label="ShortURL Admin 短链管理后台">
+            <span className="admin-logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 48 48">
+                <path d="M17.2 30.8h-3.4a8.8 8.8 0 0 1 0-17.6h7.8" />
+                <path d="M30.8 17.2h3.4a8.8 8.8 0 1 1 0 17.6h-7.8" />
+                <path d="M18.5 24h11" />
+                <path d="M9.8 38.2 38.2 9.8" />
+              </svg>
+            </span>
+            <span className="admin-logo-copy">
+              <span className="admin-logo-name">ShortURL</span>
+              <span className="admin-logo-subtitle">短链管理</span>
+            </span>
+          </h1>
         </div>
 
         <div className="hero-actions">
-          <button type="button" className="secondary-button" onClick={onReload} disabled={isLoading}>
-            刷新列表
+          <span className="header-account-chip" title={`当前登录账号：${session.username}`}>
+            <span aria-hidden="true">{session.username.slice(0, 1).toUpperCase()}</span>
+            <strong>{session.username}</strong>
+          </span>
+          <button type="button" className="ghost-button header-icon-button" onClick={onReload} disabled={isLoading} aria-label="刷新列表" title="刷新列表">
+            <RefreshIcon />
           </button>
           <button type="button" className="primary-button" onClick={() => setModal({ type: "create" })}>
-            新建短链
+            <PlusIcon />
+            <span>新建</span>
           </button>
-          <button type="button" className="ghost-button" onClick={onLogout}>
-            退出登录
+          <button type="button" className="ghost-button header-icon-button" onClick={onLogout} aria-label="退出登录" title="退出登录">
+            <LogoutIcon />
           </button>
         </div>
       </section>
 
       <section className="summary-grid">
         <article className="summary-card">
-          <span className="summary-label">短链总数</span>
-          <strong>{summary.total}</strong>
+          <div>
+            <span className="summary-label">短链总数</span>
+            <strong className="numeric-value">{summary.total}</strong>
+          </div>
+          <MiniSparkline bars={summaryBars.total} />
+          <span className="summary-note">当前视图 · {filteredLinks.length} 条</span>
         </article>
         <article className="summary-card">
-          <span className="summary-label">启用中</span>
-          <strong>{summary.enabled}</strong>
+          <div>
+            <span className="summary-label">启用中</span>
+            <strong className="numeric-value">{summary.enabled}</strong>
+          </div>
+          <MiniSparkline bars={summaryBars.enabled} tone="green" />
+          <span className="summary-note">启用率 {enabledRate}%</span>
         </article>
         <article className="summary-card">
-          <span className="summary-label">累计点击</span>
-          <strong>{summary.clicks}</strong>
+          <div>
+            <span className="summary-label">累计点击</span>
+            <strong className="numeric-value">{summary.clicks}</strong>
+          </div>
+          <MiniSparkline bars={summaryBars.clicks} tone="violet" />
+          <span className="summary-note">平均 {averageClicks} 次 / 链接</span>
         </article>
       </section>
 
@@ -259,6 +306,7 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
                 onChange={(event) => setSearchQuery(event.target.value)}
                 aria-label="搜索短链"
                 placeholder="搜索短码、目标地址、备注或标签"
+                autoFocus
               />
               <span className="search-shortcut" aria-hidden="true">/</span>
               {searchQuery && (
@@ -362,19 +410,28 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
                           </button>
                         ))
                       ) : (
-                        <span className="tag-empty">无标签</span>
+                        <span className="tag-empty">-</span>
                       )}
                     </div>
                   </td>
                   <td>
                     <div className="badge-row">
-                      <span className={`badge ${link.enabled ? "badge-enabled" : "badge-disabled"}`}>
-                        {link.enabled ? "启用" : "禁用"}
-                      </span>
+                      <button
+                        type="button"
+                        className={`switch-button ${link.enabled ? "switch-button-on" : ""}`}
+                        onClick={() => void handleToggleEnabled(link)}
+                        disabled={isSubmitting}
+                        aria-pressed={link.enabled}
+                        aria-label={`${link.enabled ? "禁用" : "启用"} ${link.code}`}
+                        title={link.enabled ? "点击禁用" : "点击启用"}
+                      >
+                        <span aria-hidden="true" />
+                        <strong>{link.enabled ? "启用" : "禁用"}</strong>
+                      </button>
                     </div>
                   </td>
                   <td>
-                    <div className="stacked-meta">
+                    <div className="stacked-meta numeric-value">
                       <span>{link.click_count}</span>
                     </div>
                   </td>
@@ -382,17 +439,21 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
                     <div className="table-actions">
                       <button
                         type="button"
-                        className="secondary-button small-button"
+                        className="icon-action-button"
                         onClick={() => setSelectedLinkId(link.id)}
+                        aria-label="分析"
+                        title="分析"
                       >
-                        分析
+                        <ChartIcon />
                       </button>
                       <button
                         type="button"
-                        className="ghost-button small-button"
+                        className="icon-action-button"
                         onClick={() => setModal({ type: "edit", link })}
+                        aria-label="编辑"
+                        title="编辑"
                       >
-                        编辑
+                        <EditIcon />
                       </button>
                     </div>
                   </td>
@@ -611,6 +672,96 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
 
 function maxClicks(points: LinkAnalytics["time_series"]) {
   return points.reduce((value, point) => Math.max(value, point.clicks), 1);
+}
+
+function parseSearchQuery(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .reduce(
+      (tokens, item) => {
+        if (item.startsWith("tag:") && item.length > 4) {
+          tokens.tags.push(item.slice(4));
+        } else {
+          tokens.terms.push(item);
+        }
+
+        return tokens;
+      },
+      { terms: [] as string[], tags: [] as string[] },
+    );
+}
+
+function createSummaryBars(items: Link[]) {
+  const base = items.length > 0 ? items.slice(0, 8) : [{ click_count: 0, enabled: false } as Link];
+  const maxClickCount = base.reduce((value, link) => Math.max(value, link.click_count), 1);
+
+  return {
+    total: base.map((_, index) => 28 + ((index + 1) % 4) * 14),
+    enabled: base.map((link, index) => (link.enabled ? 44 + (index % 3) * 12 : 18)),
+    clicks: base.map((link) => Math.max((link.click_count / maxClickCount) * 100, link.click_count > 0 ? 22 : 8)),
+  };
+}
+
+function MiniSparkline({ bars, tone = "blue" }: { bars: number[]; tone?: "blue" | "green" | "violet" }) {
+  return (
+    <div className={`summary-sparkline summary-sparkline-${tone}`} aria-hidden="true">
+      {bars.map((height, index) => (
+        <span key={index} style={{ height: `${height}%` }} />
+      ))}
+    </div>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg className="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 11a8 8 0 0 0-14.2-5" />
+      <path d="M4 5v5h5" />
+      <path d="M4 13a8 8 0 0 0 14.2 5" />
+      <path d="M20 19v-5h-5" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg className="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg className="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10 6H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4" />
+      <path d="M14 16l4-4-4-4" />
+      <path d="M18 12H9" />
+    </svg>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 19V5" />
+      <path d="M4 19h16" />
+      <path d="m7 15 3.5-4 3 2.5L19 7" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z" />
+      <path d="m14 8 2 2" />
+    </svg>
+  );
 }
 
 function formatDateTime(value: string) {

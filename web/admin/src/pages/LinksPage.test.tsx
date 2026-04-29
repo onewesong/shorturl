@@ -144,10 +144,44 @@ describe("LinksPage", () => {
       />,
     );
 
+    screen.getByRole("button", { name: "刷新列表" }).focus();
     await user.keyboard("/");
     expect(screen.getByRole("textbox", { name: "搜索短链" })).toHaveFocus();
 
     await user.keyboard("other");
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "other" })).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "demo" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("supports tag search syntax", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <LinksPage
+        session={session}
+        links={[
+          ...links,
+          {
+            id: 2,
+            code: "other",
+            target_url: "https://example.com/other",
+            remark: "其他链接",
+            tags: ["marketing"],
+            enabled: true,
+            click_count: 1,
+          },
+        ]}
+        isLoading={false}
+        error=""
+        onReload={vi.fn().mockResolvedValue(undefined)}
+        onLogout={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByRole("textbox", { name: "搜索短链" }), "tag:marketing");
 
     await waitFor(() => {
       expect(screen.getByRole("link", { name: "other" })).toBeInTheDocument();
