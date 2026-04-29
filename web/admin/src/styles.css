@@ -759,6 +759,29 @@ textarea {
   min-width: min(520px, 100%);
 }
 
+.links-table-header {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(360px, 560px) minmax(220px, 1fr);
+  align-items: start;
+}
+
+.table-search-control {
+  justify-self: center;
+  width: min(560px, 100%);
+}
+
+.table-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.table-create-button {
+  min-width: 112px;
+}
+
 .search-control {
   position: relative;
   display: block;
@@ -1695,6 +1718,19 @@ tbody tr:hover,
   .search-control {
     width: 100%;
     min-width: 0;
+  }
+
+  .links-table-header {
+    grid-template-columns: 1fr;
+  }
+
+  .table-search-control {
+    justify-self: stretch;
+  }
+
+  .table-header-actions {
+    justify-content: flex-start;
+    width: 100%;
   }
 
   .table-tools {

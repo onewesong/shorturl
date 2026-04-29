@@ -241,13 +241,6 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
             <span aria-hidden="true">{session.username.slice(0, 1).toUpperCase()}</span>
             <strong>{session.username}</strong>
           </span>
-          <button type="button" className="ghost-button header-icon-button" onClick={onReload} disabled={isLoading} aria-label="刷新列表" title="刷新列表">
-            <RefreshIcon />
-          </button>
-          <button type="button" className="primary-button" onClick={() => setModal({ type: "create" })}>
-            <PlusIcon />
-            <span>新建</span>
-          </button>
           <button type="button" className="ghost-button header-icon-button" onClick={onLogout} aria-label="退出登录" title="退出登录">
             <LogoutIcon />
           </button>
@@ -285,7 +278,7 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
       {successMessage && <p className="success-banner">{successMessage}</p>}
 
       <section className="table-card">
-        <div className="table-header">
+        <div className="table-header links-table-header">
           <div>
             <p className="eyebrow">Links</p>
             <h2>跳转规则列表</h2>
@@ -297,25 +290,31 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
               </p>
             )}
           </div>
-          <div className="table-tools">
-            <label className="search-control">
-              <span className="visually-hidden">搜索短链</span>
-              <input
-                ref={searchInputRef}
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                aria-label="搜索短链"
-                placeholder="搜索短码、目标地址、备注或标签"
-                autoFocus
-              />
-              <span className="search-shortcut" aria-hidden="true">/</span>
-              {searchQuery && (
-                <button type="button" className="search-clear-button" onClick={() => setSearchQuery("")} aria-label="清空搜索">
-                  ×
-                </button>
-              )}
-            </label>
-            <span className="status-pill">{isLoading ? "加载中..." : `${filteredLinks.length} links`}</span>
+          <label className="search-control table-search-control">
+            <span className="visually-hidden">搜索短链</span>
+            <input
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              aria-label="搜索短链"
+              placeholder="搜索短码、目标地址、备注或标签"
+              autoFocus
+            />
+            <span className="search-shortcut" aria-hidden="true">/</span>
+            {searchQuery && (
+              <button type="button" className="search-clear-button" onClick={() => setSearchQuery("")} aria-label="清空搜索">
+                ×
+              </button>
+            )}
+          </label>
+          <div className="table-header-actions">
+            <button type="button" className="ghost-button header-icon-button" onClick={onReload} disabled={isLoading} aria-label="刷新列表" title="刷新列表">
+              <RefreshIcon />
+            </button>
+            <button type="button" className="primary-button table-create-button" onClick={() => setModal({ type: "create" })}>
+              <PlusIcon />
+              <span>新建</span>
+            </button>
           </div>
         </div>
 
