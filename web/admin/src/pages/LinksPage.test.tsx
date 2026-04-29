@@ -189,6 +189,44 @@ describe("LinksPage", () => {
     });
   });
 
+  it("sorts links when a table header is clicked", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <LinksPage
+        session={session}
+        links={[
+          ...links,
+          {
+            id: 2,
+            code: "other",
+            target_url: "https://example.com/other",
+            remark: "其他链接",
+            tags: ["marketing"],
+            enabled: true,
+            click_count: 1,
+          },
+        ]}
+        isLoading={false}
+        error=""
+        onReload={vi.fn().mockResolvedValue(undefined)}
+        onLogout={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /点击/ }));
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual(["other", "demo"]);
+    });
+
+    await user.click(screen.getByRole("button", { name: /点击/ }));
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual(["demo", "other"]);
+    });
+  });
+
   it("opens edit modal", async () => {
     const user = userEvent.setup();
 

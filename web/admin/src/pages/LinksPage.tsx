@@ -14,11 +14,14 @@ type Props = {
 };
 
 type ModalState = { type: "create" } | { type: "edit"; link: Link } | null;
+type SortKey = "code" | "target_url" | "tags" | "enabled" | "click_count";
+type SortDirection = "asc" | "desc";
 
 export function LinksPage({ session, links, isLoading, error, onReload, onLogout }: Props) {
   const [modal, setModal] = useState<ModalState>(null);
   const [activeTag, setActiveTag] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortState, setSortState] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
   const [actionError, setActionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +46,8 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
 
     return matchesTag && matchesSearch;
   });
-  const selectedLink = filteredLinks.find((item) => item.id === selectedLinkId) ?? links.find((item) => item.id === selectedLinkId) ?? null;
+  const sortedLinks = sortState ? [...filteredLinks].sort((left, right) => compareLinks(left, right, sortState)) : filteredLinks;
+  const selectedLink = sortedLinks.find((item) => item.id === selectedLinkId) ?? links.find((item) => item.id === selectedLinkId) ?? null;
 
   const summary = {
     total: filteredLinks.length,
@@ -175,6 +179,16 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
       await updateLink(linkId, payload);
       setModal(null);
     }, "短链已更新");
+  }
+
+  function handleSort(key: SortKey) {
+    setSortState((current) => {
+      if (current?.key !== key) {
+        return { key, direction: "asc" };
+      }
+
+      return { key, direction: current.direction === "asc" ? "desc" : "asc" };
+    });
   }
 
   async function handleToggleEnabled(link: Link) {
@@ -344,16 +358,26 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
           <table>
             <thead>
               <tr>
-                <th>短码</th>
-                <th>目标地址</th>
-                <th>标签</th>
-                <th>状态</th>
-                <th>点击</th>
+                <th scope="col" aria-sort={getAriaSort(sortState, "code")}>
+                  <SortHeader label="短码" sortKey="code" sortState={sortState} onSort={handleSort} />
+                </th>
+                <th scope="col" aria-sort={getAriaSort(sortState, "target_url")}>
+                  <SortHeader label="目标地址" sortKey="target_url" sortState={sortState} onSort={handleSort} />
+                </th>
+                <th scope="col" aria-sort={getAriaSort(sortState, "tags")}>
+                  <SortHeader label="标签" sortKey="tags" sortState={sortState} onSort={handleSort} />
+                </th>
+                <th scope="col" aria-sort={getAriaSort(sortState, "enabled")}>
+                  <SortHeader label="状态" sortKey="enabled" sortState={sortState} onSort={handleSort} />
+                </th>
+                <th scope="col" aria-sort={getAriaSort(sortState, "click_count")}>
+                  <SortHeader label="点击" sortKey="click_count" sortState={sortState} onSort={handleSort} />
+                </th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {filteredLinks.map((link) => (
+              {sortedLinks.map((link) => (
                 <tr key={link.id}>
                   <td>
                     <div className="account-title">
@@ -702,6 +726,66 @@ function createSummaryBars(items: Link[]) {
     enabled: base.map((link, index) => (link.enabled ? 44 + (index % 3) * 12 : 18)),
     clicks: base.map((link) => Math.max((link.click_count / maxClickCount) * 100, link.click_count > 0 ? 22 : 8)),
   };
+}
+
+function compareLinks(left: Link, right: Link, sortState: { key: SortKey; direction: SortDirection }) {
+  const directionFactor = sortState.direction === "asc" ? 1 : -1;
+  let result = 0;
+
+  switch (sortState.key) {
+    case "code":
+      result = left.code.localeCompare(right.code, "zh-CN", { numeric: true, sensitivity: "base" });
+      break;
+    case "target_url":
+      result = left.target_url.localeCompare(right.target_url, "zh-CN", { numeric: true, sensitivity: "base" });
+      break;
+    case "tags":
+      result = left.tags.join(" ").localeCompare(right.tags.join(" "), "zh-CN", { numeric: true, sensitivity: "base" });
+      break;
+    case "enabled":
+      result = Number(left.enabled) - Number(right.enabled);
+      break;
+    case "click_count":
+      result = left.click_count - right.click_count;
+      break;
+  }
+
+  if (result === 0) {
+    result = left.code.localeCompare(right.code, "zh-CN", { numeric: true, sensitivity: "base" });
+  }
+
+  return result * directionFactor;
+}
+
+function getAriaSort(sortState: { key: SortKey; direction: SortDirection } | null, key: SortKey) {
+  if (sortState?.key !== key) {
+    return "none";
+  }
+
+  return sortState.direction === "asc" ? "ascending" : "descending";
+}
+
+function SortHeader({
+  label,
+  sortKey,
+  sortState,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sortState: { key: SortKey; direction: SortDirection } | null;
+  onSort: (key: SortKey) => void;
+}) {
+  const isActive = sortState?.key === sortKey;
+
+  return (
+    <button type="button" className={`sort-header-button ${isActive ? "sort-header-button-active" : ""}`} onClick={() => onSort(sortKey)}>
+      <span>{label}</span>
+      <span className="sort-indicator" aria-hidden="true">
+        {isActive ? (sortState.direction === "asc" ? "↑" : "↓") : "↕"}
+      </span>
+    </button>
+  );
 }
 
 function MiniSparkline({ bars, tone = "blue" }: { bars: number[]; tone?: "blue" | "green" | "violet" }) {

@@ -1101,6 +1101,38 @@ th {
   text-transform: uppercase;
 }
 
+.sort-header-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+}
+
+.sort-header-button:hover,
+.sort-header-button-active {
+  color: #3159d0;
+}
+
+.sort-indicator {
+  color: currentColor;
+  font-size: 0.82rem;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.sort-header-button-active .sort-indicator {
+  opacity: 1;
+}
+
 tbody tr {
   transition: background-color 140ms ease;
 }
