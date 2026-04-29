@@ -227,6 +227,53 @@ describe("LinksPage", () => {
     });
   });
 
+  it("deletes a link after confirmation", async () => {
+    const user = userEvent.setup();
+    const deleteLink = vi.spyOn(api, "deleteLink").mockResolvedValue({ ok: true });
+    const onReload = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(
+      <LinksPage
+        session={session}
+        links={links}
+        isLoading={false}
+        error=""
+        onReload={onReload}
+        onLogout={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "删除 demo" }));
+
+    expect(window.confirm).toHaveBeenCalledWith("确认删除短链 demo？此操作不可恢复。");
+    expect(deleteLink).toHaveBeenCalledWith(1);
+    await waitFor(() => expect(onReload).toHaveBeenCalled());
+    expect(screen.getByText("短链已删除")).toBeInTheDocument();
+  });
+
+  it("does not delete when confirmation is cancelled", async () => {
+    const user = userEvent.setup();
+    const deleteLink = vi.spyOn(api, "deleteLink").mockResolvedValue({ ok: true });
+    deleteLink.mockClear();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(
+      <LinksPage
+        session={session}
+        links={links}
+        isLoading={false}
+        error=""
+        onReload={vi.fn().mockResolvedValue(undefined)}
+        onLogout={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "删除 demo" }));
+
+    expect(deleteLink).not.toHaveBeenCalled();
+  });
+
   it("opens edit modal", async () => {
     const user = userEvent.setup();
 

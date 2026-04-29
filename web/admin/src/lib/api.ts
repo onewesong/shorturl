@@ -76,6 +76,12 @@ export function updateLink(id: number, payload: UpdateLinkInput) {
   });
 }
 
+export function deleteLink(id: number) {
+  return request<{ ok: boolean }>(`/links/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export function getLinkAnalytics(id: number, days: number) {
   return request<LinkAnalytics>(`/links/${id}/analytics?days=${days}`);
 }

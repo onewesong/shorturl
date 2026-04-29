@@ -1062,7 +1062,7 @@ table {
 
 .table-card th:nth-child(2),
 .table-card td:nth-child(2) {
-  width: 34%;
+  width: 32%;
 }
 
 .table-card th:nth-child(3),
@@ -1082,7 +1082,7 @@ table {
 
 .table-card th:nth-child(6),
 .table-card td:nth-child(6) {
-  width: 14%;
+  width: 16%;
 }
 
 th,
@@ -1268,6 +1268,21 @@ tbody tr:hover,
   transform: translateY(-1px);
   color: #3159d0;
   background: rgba(59, 109, 246, 0.1);
+}
+
+.icon-action-button-danger {
+  color: #9a4b4b;
+}
+
+.icon-action-button-danger:hover {
+  color: #b83232;
+  background: rgba(226, 77, 77, 0.1);
+}
+
+.icon-action-button:disabled {
+  opacity: 0.56;
+  transform: none;
+  cursor: not-allowed;
 }
 
 .icon-action-button svg {

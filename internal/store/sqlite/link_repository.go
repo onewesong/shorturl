@@ -155,6 +155,23 @@ func (r *LinkRepository) UpdateLink(ctx context.Context, link links.Link) (links
 	return r.GetLinkByID(ctx, link.ID)
 }
 
+func (r *LinkRepository) DeleteLink(ctx context.Context, id int64) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM links WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return links.ErrLinkNotFound
+	}
+
+	return nil
+}
+
 func (r *LinkRepository) IncrementClick(ctx context.Context, id int64) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE links SET click_count = click_count + 1 WHERE id = ?`, id)
 	return err

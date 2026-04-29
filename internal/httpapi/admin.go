@@ -29,6 +29,7 @@ func registerAdminRoutes(router *gin.Engine, adminStaticDir string, linkService 
 	protected.GET("/links/:id/analytics", getLinkAnalyticsHandler(linkService))
 	protected.POST("/links", createLinkHandler(linkService))
 	protected.PUT("/links/:id", updateLinkHandler(linkService))
+	protected.DELETE("/links/:id", deleteLinkHandler(linkService))
 
 	registerAdminSPARoutes(router, adminStaticDir)
 }
@@ -193,6 +194,26 @@ func updateLinkHandler(linkService *links.Service) gin.HandlerFunc {
 		c.JSON(http.StatusOK, apiResponse{
 			Success: true,
 			Data:    link,
+		})
+	}
+}
+
+func deleteLinkHandler(linkService *links.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			writeJSONError(c, http.StatusBadRequest, "invalid_request")
+			return
+		}
+
+		if err := linkService.Delete(c.Request.Context(), id); err != nil {
+			writeLinkError(c, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, apiResponse{
+			Success: true,
+			Data:    gin.H{"ok": true},
 		})
 	}
 }

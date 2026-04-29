@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ApiError, createLink, getLinkAnalytics, updateLink } from "../lib/api";
+import { ApiError, createLink, deleteLink, getLinkAnalytics, updateLink } from "../lib/api";
 import type { AuthSession, CreateLinkInput, Link, LinkAnalytics, UpdateLinkInput } from "../types";
 import { LinkFormModal } from "../components/LinkFormModal";
 
@@ -201,6 +201,21 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
         enabled: !link.enabled,
       });
     }, link.enabled ? "短链已禁用" : "短链已启用");
+  }
+
+  async function handleDelete(link: Link) {
+    if (!window.confirm(`确认删除短链 ${link.code}？此操作不可恢复。`)) {
+      return;
+    }
+
+    await runAction(async () => {
+      await deleteLink(link.id);
+      if (selectedLinkId === link.id) {
+        setSelectedLinkId(null);
+        setAnalytics(null);
+        setAnalyticsError("");
+      }
+    }, "短链已删除");
   }
 
   async function handleCopyShortLink(link: Link) {
@@ -477,6 +492,16 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
                         title="编辑"
                       >
                         <EditIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-action-button icon-action-button-danger"
+                        onClick={() => void handleDelete(link)}
+                        disabled={isSubmitting}
+                        aria-label={`删除 ${link.code}`}
+                        title="删除"
+                      >
+                        <TrashIcon />
                       </button>
                     </div>
                   </td>
@@ -843,6 +868,18 @@ function EditIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z" />
       <path d="m14 8 2 2" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h16" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M6 7l1 13h10l1-13" />
+      <path d="M9 7V4h6v3" />
     </svg>
   );
 }

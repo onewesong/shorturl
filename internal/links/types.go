@@ -91,6 +91,7 @@ type Repository interface {
 	GetLinkByCode(ctx context.Context, code string) (Link, error)
 	CreateLink(ctx context.Context, code string, targetURL string, remark string, tags []string) (Link, error)
 	UpdateLink(ctx context.Context, link Link) (Link, error)
+	DeleteLink(ctx context.Context, id int64) error
 	IncrementClick(ctx context.Context, id int64) error
 	RecordVisit(ctx context.Context, linkID int64, meta VisitMeta) error
 	GetLinkAnalytics(ctx context.Context, id int64, since time.Time, limit int) (LinkAnalytics, error)

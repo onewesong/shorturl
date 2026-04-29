@@ -156,6 +156,7 @@ make run
 - `GET /admin/api/v1/links`
 - `POST /admin/api/v1/links`
 - `PUT /admin/api/v1/links/:id`
+- `DELETE /admin/api/v1/links/:id`
 
 访问分析：
 

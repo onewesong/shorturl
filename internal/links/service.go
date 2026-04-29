@@ -80,6 +80,10 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateLinkInput) (
 	return s.repo.UpdateLink(ctx, current)
 }
 
+func (s *Service) Delete(ctx context.Context, id int64) error {
+	return s.repo.DeleteLink(ctx, id)
+}
+
 func (s *Service) Resolve(ctx context.Context, code string, meta VisitMeta) (string, error) {
 	trimmed := strings.TrimSpace(code)
 	if trimmed == "" || strings.Contains(trimmed, "/") {

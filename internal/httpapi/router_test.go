@@ -124,6 +124,34 @@ func TestUpdateLinkFlow(t *testing.T) {
 	}
 }
 
+func TestDeleteLinkFlow(t *testing.T) {
+	router := newTestRouter(t)
+	sessionCookie := login(t, router)
+
+	createRecorder := performJSONRequest(router, http.MethodPost, "/admin/api/v1/links", `{"code":"delete-me","target_url":"https://example.com/delete"}`, sessionCookie)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", createRecorder.Code, createRecorder.Body.String())
+	}
+
+	deleteRecorder := performJSONRequest(router, http.MethodDelete, "/admin/api/v1/links/1", "", sessionCookie)
+	if deleteRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", deleteRecorder.Code, deleteRecorder.Body.String())
+	}
+
+	listRecorder := performJSONRequest(router, http.MethodGet, "/admin/api/v1/links", "", sessionCookie)
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", listRecorder.Code, listRecorder.Body.String())
+	}
+	if strings.Contains(listRecorder.Body.String(), `"code":"delete-me"`) {
+		t.Fatalf("expected deleted link to be absent, got %s", listRecorder.Body.String())
+	}
+
+	missingRecorder := performJSONRequest(router, http.MethodDelete, "/admin/api/v1/links/999", "", sessionCookie)
+	if missingRecorder.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d body=%s", missingRecorder.Code, missingRecorder.Body.String())
+	}
+}
+
 func TestRedirectIncrementsClicksAndHonorsDisabled(t *testing.T) {
 	router := newTestRouter(t)
 	sessionCookie := login(t, router)
