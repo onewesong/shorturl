@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError, createLink, deleteLink, getLinkAnalytics, updateLink } from "../lib/api";
 import type { AuthSession, CreateLinkInput, Link, LinkAnalytics, UpdateLinkInput } from "../types";
 import { LinkFormModal } from "../components/LinkFormModal";
+import { NoticeToast, type Notice } from "../components/NoticeToast";
 
 type Props = {
   session: AuthSession;
@@ -23,7 +24,7 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
   const [searchQuery, setSearchQuery] = useState("");
   const [sortState, setSortState] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
   const [actionError, setActionError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [analyticsDays, setAnalyticsDays] = useState(7);
   const [selectedLinkId, setSelectedLinkId] = useState<number | null>(null);
@@ -33,6 +34,7 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
   const [copiedLinkId, setCopiedLinkId] = useState<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const copyResetTimerRef = useRef<number | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
 
   const availableTags = Array.from(new Set(links.flatMap((link) => link.tags))).sort((left, right) => left.localeCompare(right));
   const searchTokens = parseSearchQuery(searchQuery);
@@ -95,8 +97,17 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
       if (copyResetTimerRef.current) {
         window.clearTimeout(copyResetTimerRef.current);
       }
+      if (noticeTimerRef.current) {
+        window.clearTimeout(noticeTimerRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (error) {
+      showNotice("error", "列表加载失败", error);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (!selectedLinkId) {
@@ -145,22 +156,44 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
     };
   }, [analyticsDays, selectedLinkId]);
 
-  async function runAction(action: () => Promise<void>, successText: string) {
+  function showNotice(tone: Notice["tone"], title: string, message: string) {
+    const id = Date.now();
+
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current);
+    }
+
+    setNotice({ id, tone, title, message });
+    noticeTimerRef.current = window.setTimeout(
+      () => {
+        setNotice((current) => (current?.id === id ? null : current));
+      },
+      tone === "success" ? 3600 : 6200,
+    );
+  }
+
+  function dismissNotice() {
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+
+    setNotice(null);
+  }
+
+  async function runAction(action: () => Promise<void>, successText: string, errorTarget: "notice" | "form" = "notice") {
     setIsSubmitting(true);
     setActionError("");
-    setSuccessMessage("");
 
     try {
       await action();
-      setSuccessMessage(successText);
+      showNotice("success", successText, "列表已同步到最新状态。");
       await onReload();
     } catch (unknownError) {
-      if (unknownError instanceof ApiError) {
-        setActionError(unknownError.message);
-      } else if (unknownError instanceof Error) {
-        setActionError(unknownError.message);
-      } else {
-        setActionError("unknown_error");
+      const message = getActionErrorMessage(unknownError);
+      setActionError(message);
+      if (errorTarget === "notice") {
+        showNotice("error", "操作失败", message);
       }
     } finally {
       setIsSubmitting(false);
@@ -171,14 +204,14 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
     await runAction(async () => {
       await createLink(payload);
       setModal(null);
-    }, "短链已创建");
+    }, "短链已创建", "form");
   }
 
   async function handleUpdate(linkId: number, payload: UpdateLinkInput) {
     await runAction(async () => {
       await updateLink(linkId, payload);
       setModal(null);
-    }, "短链已更新");
+    }, "短链已更新", "form");
   }
 
   function handleSort(key: SortKey) {
@@ -220,10 +253,9 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
 
   async function handleCopyShortLink(link: Link) {
     setActionError("");
-    setSuccessMessage("");
 
     if (!navigator.clipboard) {
-      setActionError("当前浏览器不支持一键复制");
+      showNotice("error", "复制失败", "当前浏览器不支持一键复制。");
       return;
     }
 
@@ -240,13 +272,15 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
       copyResetTimerRef.current = window.setTimeout(() => {
         setCopiedLinkId(null);
       }, 1600);
+      showNotice("success", "已复制短链", shortUrl);
     } catch {
-      setActionError("复制短链失败");
+      showNotice("error", "复制失败", "复制短链失败，请手动复制短码。");
     }
   }
 
   return (
     <main className="dashboard-shell">
+      <NoticeToast notice={notice} onDismiss={dismissNotice} />
       <section className="hero-panel">
         <div className="hero-brand">
           <h1 className="admin-logo-lockup" aria-label="ShortURL Admin 短链管理后台">
@@ -302,9 +336,6 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
           <span className="summary-note">平均 {averageClicks} 次 / 链接</span>
         </article>
       </section>
-
-      {(error || actionError) && <p className="error-banner">{error || actionError}</p>}
-      {successMessage && <p className="success-banner">{successMessage}</p>}
 
       <section className="table-card">
         <div className="table-header links-table-header">
@@ -428,9 +459,11 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
                       <span className="target-url-text" title={link.target_url}>
                         {link.target_url}
                       </span>
-                      <span className="remark-text" title={link.remark}>
-                        {link.remark || "暂无备注"}
-                      </span>
+                      {link.remark && (
+                        <span className="remark-text" title={link.remark}>
+                          {link.remark}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td>
@@ -720,6 +753,17 @@ export function LinksPage({ session, links, isLoading, error, onReload, onLogout
 
 function maxClicks(points: LinkAnalytics["time_series"]) {
   return points.reduce((value, point) => Math.max(value, point.clicks), 1);
+}
+
+function getActionErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "unknown_error";
 }
 
 function parseSearchQuery(value: string) {
